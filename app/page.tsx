@@ -54,6 +54,20 @@ export default function Home() {
     return () => clearTimeout(timeout);
   }, []);
 
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      process.env.NODE_ENV !== "production" ||
+      !("serviceWorker" in navigator)
+    ) {
+      return;
+    }
+
+    navigator.serviceWorker
+      .register("/sw.js")
+      .catch(() => {});
+  }, []);
+
   const viewLabel = useMemo(() => {
     if (activeView === "overview") return "Ringkasan Portofolio";
     if (activeView === "polis") return "Monitoring Polis Aktif";
