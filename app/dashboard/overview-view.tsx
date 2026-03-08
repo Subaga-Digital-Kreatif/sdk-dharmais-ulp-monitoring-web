@@ -250,9 +250,9 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
       </div>
 
       {/* 2. Main Chart & Breakdown Section */}
-      <div className="grid gap-4 lg:grid-cols-7 lg:h-[450px]">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7 lg:h-[450px]">
         {/* Main Trend Chart (Left - 4 cols) */}
-        <Card className="col-span-4 flex flex-col shadow-sm">
+        <Card className="col-span-1 lg:col-span-4 flex flex-col shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle>Trend Realisasi Anggaran</CardTitle>
@@ -342,7 +342,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
         </Card>
 
         {/* Breakdown Charts (Right - 3 cols) */}
-        <div className="col-span-3 grid grid-rows-2 gap-4">
+        <div className="col-span-1 lg:col-span-3 grid grid-cols-1 gap-4 lg:grid-rows-2">
           {/* Pie Chart: Method */}
           <Card className="shadow-sm flex flex-col">
             <CardHeader className="pb-2">

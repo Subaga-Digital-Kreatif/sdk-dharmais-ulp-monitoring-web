@@ -157,7 +157,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
 
   return (
     <>
-      <div className="grid h-full gap-3 lg:grid-cols-12 lg:grid-rows-[0.55fr_0.45fr] overflow-y-auto pb-4">
+      <div className="grid h-full gap-4 grid-cols-1 lg:grid-cols-12 lg:grid-rows-[0.55fr_0.45fr] overflow-y-auto pb-4">
         {/* Row 1: Budget Trend & KPIs */}
         <Card className="flex flex-col lg:col-span-8 lg:row-span-1">
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
@@ -178,7 +178,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
             </Button>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-2">
-            <div className="grid gap-3 text-xs md:grid-cols-4">
+            <div className="grid gap-3 text-xs grid-cols-2 md:grid-cols-4">
               <KpiStat
                 label="Total Pagu"
                 value={fmtMoney(stats.totalPagu)}

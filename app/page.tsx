@@ -9,6 +9,11 @@ import {
   ShieldCheck,
   Users,
   CalendarRange,
+  LayoutDashboard,
+  Package,
+  Wallet,
+  Activity,
+  Database,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -229,11 +234,26 @@ export default function Home() {
             </div>
             <div className="flex flex-wrap items-center gap-2 lg:gap-3">
               <TabsList>
-                <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-                <TabsTrigger value="paket">Daftar Paket</TabsTrigger>
-                <TabsTrigger value="anggaran">Anggaran</TabsTrigger>
-                <TabsTrigger value="progres">Progres</TabsTrigger>
-                <TabsTrigger value="master">Master Data</TabsTrigger>
+                <TabsTrigger value="overview" className="gap-2">
+                   <LayoutDashboard className="h-4 w-4" />
+                   <span className="hidden lg:inline">Ringkasan</span>
+                </TabsTrigger>
+                <TabsTrigger value="paket" className="gap-2">
+                   <Package className="h-4 w-4" />
+                   <span className="hidden lg:inline">Daftar Paket</span>
+                </TabsTrigger>
+                <TabsTrigger value="anggaran" className="gap-2">
+                   <Wallet className="h-4 w-4" />
+                   <span className="hidden lg:inline">Anggaran</span>
+                </TabsTrigger>
+                <TabsTrigger value="progres" className="gap-2">
+                   <Activity className="h-4 w-4" />
+                   <span className="hidden lg:inline">Progres</span>
+                </TabsTrigger>
+                <TabsTrigger value="master" className="gap-2">
+                   <Database className="h-4 w-4" />
+                   <span className="hidden lg:inline">Master Data</span>
+                </TabsTrigger>
               </TabsList>
               <div className="flex flex-1 flex-col gap-1 rounded-2xl border border-[#C9E3FF] bg-white px-3 py-1.5 text-xs sm:flex-row sm:items-center">
                 <div className="flex items-center gap-2">

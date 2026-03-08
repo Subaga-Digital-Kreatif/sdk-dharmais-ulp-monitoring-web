@@ -1,22 +1,35 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Search,
   ArrowUpRight,
   Package,
   DollarSign,
   TrendingUp,
-  ArrowUpDown
+  ArrowUpDown,
+  Filter,
+  PieChart as PieChartIcon,
+  BarChart3,
+  List,
+  MoreHorizontal
 } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Bar,
   CartesianGrid,
@@ -48,6 +61,7 @@ export function PaketView({ isLoading, data }: CommonViewProps) {
   const [activeModal, setActiveModal] = useState<PaketModalType>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [selectedView, setSelectedView] = useState<"split" | "table" | "charts">("split");
 
   const stats = useMemo(() => calculateUlpStats(data), [data]);
 
@@ -127,7 +141,7 @@ export function PaketView({ isLoading, data }: CommonViewProps) {
       result.sort((a, b) => (b.tanggalDpp?.getTime() || 0) - (a.tanggalDpp?.getTime() || 0));
     }
 
-    return result.slice(0, 50); // Limit for performance
+    return result.slice(0, 100); // Limit for performance in scroll view
   }, [data, searchTerm, sortConfig]);
 
   const handleSort = (key: string) => {
@@ -212,231 +226,300 @@ export function PaketView({ isLoading, data }: CommonViewProps) {
   }
 
   return (
-    <div className="space-y-4 p-1">
-      {/* 1. KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Paket</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-bold">{stats.totalPackages}</div>
-                <p className="text-xs text-muted-foreground mt-1">Paket terdaftar</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Nilai Pagu</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-bold">{formatLargeCurrency(stats.totalPagu)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Akumulasi seluruh paket</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Rata-rata Nilai</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-bold">{formatCurrency(stats.totalPackages > 0 ? stats.totalPagu / stats.totalPackages : 0)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Per paket pengadaan</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Paket Terbesar</CardTitle>
-            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-lg font-bold truncate" title={stats.topProjects[0]?.name}>
-                   {formatLargeCurrency(stats.topProjects[0]?.pagu || 0)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 truncate" title={stats.topProjects[0]?.name}>
-                   {stats.topProjects[0]?.name || "-"}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 2. Charts Section */}
-      <div className="grid gap-4 lg:grid-cols-7 lg:h-[400px]">
-         {/* Monthly Trend */}
-         <Card className="col-span-4 flex flex-col shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-               <div>
-                  <CardTitle>Trend Bulanan</CardTitle>
-                  <CardDescription>Volume dan Nilai Paket per Bulan</CardDescription>
-               </div>
-               <Button variant="outline" size="icon" onClick={() => setActiveModal("trend")}>
-                  <ArrowUpRight className="h-4 w-4" />
-               </Button>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0">
-               {isLoading ? <Skeleton className="h-full w-full" /> : (
-                  <ResponsiveContainer width="100%" height="100%">
-                     <ComposedChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis dataKey="label" tick={{fontSize: 11, fill: '#64748b'}} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="left" tick={{fontSize: 11, fill: '#64748b'}} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="right" orientation="right" tick={{fontSize: 11, fill: '#64748b'}} axisLine={false} tickLine={false} tickFormatter={(val) => formatCurrency(val)} />
-                        <Tooltip 
-                           contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                           formatter={(value: any, name: any) => {
-                              if (name === "pagu") return [formatCurrency(value), "Total Pagu"];
-                              return [value, "Jumlah Paket"];
-                           }}
-                        />
-                        <Legend verticalAlign="top" height={36} iconType="circle" />
-                        <Bar yAxisId="left" dataKey="count" name="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
-                        <Line yAxisId="right" type="monotone" dataKey="pagu" name="pagu" stroke="#f59e0b" strokeWidth={2} dot={{r: 3}} />
-                     </ComposedChart>
-                  </ResponsiveContainer>
-               )}
-            </CardContent>
-         </Card>
-
-         {/* Price Range Distribution */}
-         <Card className="col-span-3 flex flex-col shadow-sm">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-               <CardTitle>Distribusi Nilai Paket</CardTitle>
-               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("range")}>
-                  <ArrowUpRight className="h-3 w-3" />
-               </Button>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 flex items-center justify-center">
-               {isLoading ? <Skeleton className="h-full w-full" /> : (
-                  <div className="w-full h-full flex items-center">
-                     <div className="w-1/2 h-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                           <PieChart>
-                              <Pie
-                                 data={priceRanges}
-                                 cx="50%"
-                                 cy="50%"
-                                 innerRadius={40}
-                                 outerRadius={60}
-                                 paddingAngle={2}
-                                 dataKey="count"
-                              >
-                                 {priceRanges.map((_, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                 ))}
-                              </Pie>
-                              <Tooltip formatter={(val: any) => val + " Paket"} contentStyle={{ fontSize: '12px', borderRadius: '8px' }} />
-                           </PieChart>
-                        </ResponsiveContainer>
-                     </div>
-                     <div className="w-1/2 text-xs space-y-2">
-                        {priceRanges.map((entry, index) => (
-                           <div key={index} className="flex items-center justify-between pr-4">
-                              <div className="flex items-center gap-2">
-                                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                                 <span>{entry.name}</span>
-                              </div>
-                              <span className="font-semibold">{entry.count}</span>
-                           </div>
-                        ))}
-                     </div>
-                  </div>
-               )}
-            </CardContent>
-         </Card>
-      </div>
-
-      {/* 3. Data Table Section */}
-      <Card className="shadow-sm">
-         <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-               <div>
-                  <CardTitle>Daftar Paket Pengadaan</CardTitle>
-                  <CardDescription>Menampilkan {filteredPackages.length} paket terbaru</CardDescription>
-               </div>
-               <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <input
+    <div className="flex flex-col h-[calc(100vh-140px)] gap-4 p-1">
+      {/* 1. Header & Stats Bar */}
+      <div className="flex-none space-y-4">
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard 
+               title="Total Paket" 
+               value={stats.totalPackages} 
+               subtext="Paket terdaftar" 
+               icon={<Package className="h-4 w-4 text-blue-500" />} 
+               loading={isLoading}
+            />
+            <StatCard 
+               title="Total Pagu" 
+               value={formatLargeCurrency(stats.totalPagu)} 
+               subtext="Akumulasi" 
+               icon={<DollarSign className="h-4 w-4 text-emerald-500" />} 
+               loading={isLoading}
+            />
+            <StatCard 
+               title="Rata-rata" 
+               value={formatCurrency(stats.totalPackages > 0 ? stats.totalPagu / stats.totalPackages : 0)} 
+               subtext="Per paket" 
+               icon={<TrendingUp className="h-4 w-4 text-amber-500" />} 
+               loading={isLoading}
+            />
+            <StatCard 
+               title="Terbesar" 
+               value={formatLargeCurrency(stats.topProjects[0]?.pagu || 0)} 
+               subtext={stats.topProjects[0]?.name || "-"} 
+               icon={<ArrowUpRight className="h-4 w-4 text-purple-500" />} 
+               loading={isLoading}
+               truncate
+            />
+         </div>
+         
+         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 flex-1 w-full md:w-auto">
+               <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
                      type="text"
-                     placeholder="Cari nama paket, unit..."
-                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 pl-8 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                     placeholder="Cari nama paket, unit, agenda..."
+                     className="pl-9 h-9 bg-slate-50 border-slate-200"
                      value={searchTerm}
-                     onChange={(e) => setSearchTerm(e.target.value)}
+                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                   />
                </div>
+               <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                     <Button variant="outline" size="sm" className="h-9">
+                        <Filter className="mr-2 h-4 w-4" /> Filter
+                     </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="border-slate-200">
+                     <DropdownMenuLabel>Filter Data</DropdownMenuLabel>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuItem>Status: Aktif</DropdownMenuItem>
+                     <DropdownMenuItem>Status: Selesai</DropdownMenuItem>
+                     <DropdownMenuSeparator />
+                     <DropdownMenuItem>Clear Filters</DropdownMenuItem>
+                  </DropdownMenuContent>
+               </DropdownMenu>
             </div>
-         </CardHeader>
-         <CardContent>
-            {isLoading ? <Skeleton className="h-48 w-full" /> : (
-               <div className="relative w-full overflow-auto rounded-md border">
-                  <table className="w-full caption-bottom text-sm">
-                     <thead className="bg-muted/50 [&_tr]:border-b">
-                        <tr className="border-b transition-colors data-[state=selected]:bg-muted">
-                           <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort('tanggalDpp')}>
-                              <div className="flex items-center gap-1">Tanggal <ArrowUpDown className="h-3 w-3" /></div>
+            
+            <div className="flex items-center justify-between md:justify-end gap-1 bg-slate-100 p-1 rounded-md w-full md:w-auto">
+               <Button 
+                  variant={selectedView === "table" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className={`h-7 px-3 ${selectedView === "table" ? "shadow-sm bg-white" : "text-muted-foreground"}`}
+                  onClick={() => setSelectedView("table")}
+               >
+                  <List className="h-4 w-4 mr-2" /> Table
+               </Button>
+               <Button 
+                  variant={selectedView === "charts" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className={`h-7 px-3 ${selectedView === "charts" ? "shadow-sm bg-white" : "text-muted-foreground"}`}
+                  onClick={() => setSelectedView("charts")}
+               >
+                  <BarChart3 className="h-4 w-4 mr-2" /> Charts
+               </Button>
+               <Button 
+                  variant={selectedView === "split" ? "secondary" : "ghost"} 
+                  size="sm" 
+                  className={`h-7 px-3 ${selectedView === "split" ? "shadow-sm bg-white" : "text-muted-foreground"}`}
+                  onClick={() => setSelectedView("split")}
+               >
+                  <div className="flex items-center">
+                     <List className="h-3 w-3 mr-1" />
+                     <span className="text-xs mx-1">|</span>
+                     <PieChartIcon className="h-3 w-3 ml-1" />
+                  </div>
+               </Button>
+            </div>
+         </div>
+      </div>
+
+      {/* 2. Main Content Area */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 overflow-y-auto lg:overflow-hidden">
+         {/* Table Section */}
+         {(selectedView === "table" || selectedView === "split") && (
+            <div className={`flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden ${selectedView === "split" ? "w-full lg:w-2/3" : "w-full"}`}>
+               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50/50">
+                  <div className="font-medium text-sm text-slate-700">
+                     Daftar Paket ({filteredPackages.length})
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                     Showing top 100
+                  </div>
+               </div>
+               <div className="flex-1 overflow-auto">
+                  <table className="w-full text-sm">
+                     <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                        <tr className="border-b border-slate-200">
+                           <th className="h-10 px-4 text-left font-medium text-muted-foreground w-[120px]">
+                              <button className="flex items-center gap-1 hover:text-slate-900" onClick={() => handleSort('tanggalDpp')}>
+                                 Tanggal <ArrowUpDown className="h-3 w-3" />
+                              </button>
                            </th>
-                           <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Unit Kerja</th>
-                           <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Nama Paket</th>
-                           <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Metode</th>
-                           <th className="h-10 px-4 text-right align-middle font-medium text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleSort('pagu')}>
-                              <div className="flex items-center justify-end gap-1">Pagu <ArrowUpDown className="h-3 w-3" /></div>
+                           <th className="h-10 px-4 text-left font-medium text-muted-foreground w-[100px]">Unit</th>
+                           <th className="h-10 px-4 text-left font-medium text-muted-foreground">Nama Paket</th>
+                           <th className="h-10 px-4 text-right font-medium text-muted-foreground w-[150px]">
+                              <button className="flex items-center justify-end gap-1 hover:text-slate-900 ml-auto" onClick={() => handleSort('pagu')}>
+                                 Pagu <ArrowUpDown className="h-3 w-3" />
+                              </button>
                            </th>
+                           <th className="h-10 px-4 text-center font-medium text-muted-foreground w-[50px]"></th>
                         </tr>
                      </thead>
-                     <tbody className="[&_tr:last-child]:border-0">
-                        {filteredPackages.map((item, i) => (
-                           <tr key={i} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                              <td className="p-4 align-middle whitespace-nowrap text-muted-foreground">
-                                 {item.tanggalDpp?.toLocaleDateString("id-ID") || "-"}
-                              </td>
-                              <td className="p-4 align-middle font-medium text-emerald-700 whitespace-nowrap max-w-[150px] truncate" title={item.unitKerja}>
-                                 {item.unitKerja}
-                              </td>
-                              <td className="p-4 align-middle font-medium max-w-[300px] truncate" title={item.namaPaketPbj}>
-                                 {item.namaPaketPbj}
-                                 <div className="text-[10px] text-muted-foreground mt-0.5">{item.noAgenda}</div>
-                              </td>
-                              <td className="p-4 align-middle text-muted-foreground max-w-[150px] truncate">
-                                 <Badge variant="outline" className="text-[10px] font-normal">
-                                    {item.uraianMakInduk || "Lainnya"}
-                                 </Badge>
-                              </td>
-                              <td className="p-4 align-middle text-right font-medium">
-                                 {formatCurrency(item.paguAnggaranAktif || 0)}
-                              </td>
-                           </tr>
-                        ))}
-                        {filteredPackages.length === 0 && (
+                     <tbody className="divide-y divide-slate-100">
+                        {isLoading ? (
+                           Array.from({ length: 10 }).map((_, i) => (
+                              <tr key={i}>
+                                 <td className="p-4"><Skeleton className="h-4 w-20" /></td>
+                                 <td className="p-4"><Skeleton className="h-4 w-12" /></td>
+                                 <td className="p-4"><Skeleton className="h-4 w-full" /></td>
+                                 <td className="p-4"><Skeleton className="h-4 w-24 ml-auto" /></td>
+                                 <td className="p-4"></td>
+                              </tr>
+                           ))
+                        ) : filteredPackages.length === 0 ? (
                            <tr>
                               <td colSpan={5} className="p-8 text-center text-muted-foreground">
                                  Tidak ada paket ditemukan
                               </td>
                            </tr>
+                        ) : (
+                           filteredPackages.map((item, i) => (
+                              <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                                 <td className="p-4 whitespace-nowrap text-slate-500">
+                                    {item.tanggalDpp ? (
+                                       <div className="flex flex-col">
+                                          <span className="font-medium text-slate-700">
+                                             {item.tanggalDpp.getDate()} {item.tanggalDpp.toLocaleString('id-ID', { month: 'short' })}
+                                          </span>
+                                          <span className="text-xs">{item.tanggalDpp.getFullYear()}</span>
+                                       </div>
+                                    ) : "-"}
+                                 </td>
+                                 <td className="p-4 whitespace-nowrap">
+                                    <Badge variant="outline" className="font-normal bg-slate-50">
+                                       {item.unitKerja}
+                                    </Badge>
+                                 </td>
+                                 <td className="p-4">
+                                    <div className="font-medium text-slate-900 line-clamp-2" title={item.namaPaketPbj}>
+                                       {item.namaPaketPbj}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                       <span>{item.noAgenda}</span>
+                                       <span>•</span>
+                                       <span>{item.uraianMakInduk || "Lainnya"}</span>
+                                    </div>
+                                 </td>
+                                 <td className="p-4 text-right font-medium text-slate-900 whitespace-nowrap">
+                                    {formatCurrency(item.paguAnggaranAktif || 0)}
+                                 </td>
+                                 <td className="p-4 text-center">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                 </td>
+                              </tr>
+                           ))
                         )}
                      </tbody>
                   </table>
                </div>
-            )}
-         </CardContent>
-      </Card>
+            </div>
+         )}
+
+         {/* Charts Section */}
+         {(selectedView === "charts" || selectedView === "split") && (
+            <div className={`flex flex-col gap-4 overflow-y-auto ${selectedView === "split" ? "w-full lg:w-1/3" : "w-full"}`}>
+               {/* Trend Chart */}
+               <Card className="flex flex-col shadow-sm border-slate-200 flex-1 min-h-[300px]">
+                  <CardHeader className="pb-2 border-slate-200">
+                     <CardTitle className="text-sm font-medium">Trend Bulanan</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0">
+                     <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                           <XAxis dataKey="label" tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                           <YAxis yAxisId="left" tick={{fontSize: 10, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                           <Tooltip 
+                              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                              formatter={(value: any, name: any) => [
+                                 name === "pagu" ? formatCurrency(value) : value,
+                                 name === "pagu" ? "Total Pagu" : "Jumlah Paket"
+                              ]}
+                           />
+                           <Bar yAxisId="left" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={selectedView === "split" ? 15 : 30} />
+                           {selectedView === "charts" && (
+                              <Line type="monotone" dataKey="pagu" stroke="#f59e0b" strokeWidth={2} dot={{r: 3}} />
+                           )}
+                        </ComposedChart>
+                     </ResponsiveContainer>
+                  </CardContent>
+               </Card>
+
+               {/* Distribution Chart */}
+               <Card className="flex flex-col shadow-sm border-slate-200 flex-1 min-h-[300px]">
+                  <CardHeader className="pb-2 border-slate-200">
+                     <CardTitle className="text-sm font-medium">Distribusi Nilai</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 min-h-0">
+                     <div className="h-full w-full flex flex-col items-center">
+                        <div className="flex-1 w-full min-h-[150px]">
+                           <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                 <Pie
+                                    data={priceRanges}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={selectedView === "split" ? 30 : 50}
+                                    outerRadius={selectedView === "split" ? 50 : 80}
+                                    paddingAngle={2}
+                                    dataKey="count"
+                                 >
+                                    {priceRanges.map((_, index) => (
+                                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                 </Pie>
+                                 <Tooltip formatter={(val: any) => val + " Paket"} contentStyle={{ fontSize: '12px', borderRadius: '8px' }} />
+                              </PieChart>
+                           </ResponsiveContainer>
+                        </div>
+                        <div className="w-full text-xs space-y-2 mt-2">
+                           {priceRanges.map((entry, index) => (
+                              <div key={index} className="flex items-center justify-between">
+                                 <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                    <span className="truncate max-w-[120px]">{entry.name}</span>
+                                 </div>
+                                 <span className="font-medium text-slate-700">{entry.count}</span>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                  </CardContent>
+               </Card>
+            </div>
+         )}
+      </div>
       
       {modal}
     </div>
   );
+}
+
+function StatCard({ title, value, subtext, icon, loading, truncate = false }: any) {
+   return (
+      <Card className="shadow-sm border-slate-200">
+         <CardContent className="p-4">
+            <div className="flex justify-between items-start">
+               <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
+                  {loading ? (
+                     <Skeleton className="h-7 w-20 mt-1" />
+                  ) : (
+                     <h3 className={`text-xl font-bold text-slate-900 mt-1 ${truncate ? "truncate max-w-[120px]" : ""}`} title={truncate ? value : undefined}>
+                        {value}
+                     </h3>
+                  )}
+                  <p className={`text-xs text-slate-400 mt-1 ${truncate ? "truncate max-w-[120px]" : ""}`} title={truncate ? subtext : undefined}>
+                     {subtext}
+                  </p>
+               </div>
+               <div className="p-2 bg-slate-50 rounded-lg">
+                  {icon}
+               </div>
+            </div>
+         </CardContent>
+      </Card>
+   )
 }

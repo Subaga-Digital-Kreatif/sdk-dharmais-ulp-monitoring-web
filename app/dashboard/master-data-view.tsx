@@ -238,26 +238,47 @@ export function MasterDataView({ data: initialData, isLoading }: MasterDataViewP
             </div>
             
             <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {/* 1. Identitas & Agenda */}
+               <div className="col-span-full font-semibold text-slate-800 border-b pb-1 mt-2">Identitas & Agenda</div>
                <FormField label="No" value={currentItem.no} onChange={(v: string) => updateField("no", v)} />
                <FormField label="Tanggal Diterima DPP" type="date" value={dateToInput(currentItem.tanggalDiterimaDpp)} onChange={(v: string) => updateField("tanggalDiterimaDpp", inputToDate(v))} />
                <FormField label="No. Agenda" value={currentItem.noAgenda} onChange={(v: string) => updateField("noAgenda", v)} />
                
+               {/* 2. Unit Kerja & End User */}
+               <div className="col-span-full font-semibold text-slate-800 border-b pb-1 mt-2">Unit Kerja & End User</div>
                <FormField label="Unit Kerja" value={currentItem.unitKerja} onChange={(v: string) => updateField("unitKerja", v)} />
-               <FormField label="Kode Unit Kerja" value={currentItem.kodeUnitKerjaPengendali} onChange={(v: string) => updateField("kodeUnitKerjaPengendali", v)} />
-               
+               <FormField label="Kode Unit Kerja Pengendali" value={currentItem.kodeUnitKerjaPengendali} onChange={(v: string) => updateField("kodeUnitKerjaPengendali", v)} />
                <FormField label="End User" value={currentItem.endUser} onChange={(v: string) => updateField("endUser", v)} />
                <FormField label="Kode End User" value={currentItem.kodeEndUser} onChange={(v: string) => updateField("kodeEndUser", v)} />
-               
-               <FormField label="Nama Paket PBJ" value={currentItem.namaPaketPbj} onChange={(v: string) => updateField("namaPaketPbj", v)} className="md:col-span-2" />
-               
+               <FormField label="Nomor Surat End User" value={currentItem.nomorSuratEndUser} onChange={(v: string) => updateField("nomorSuratEndUser", v)} />
+               <FormField label="Tanggal Surat End User" type="date" value={dateToInput(currentItem.tanggalSuratEndUser)} onChange={(v: string) => updateField("tanggalSuratEndUser", inputToDate(v))} />
+               <FormField label="Hal" value={currentItem.hal} onChange={(v: string) => updateField("hal", v)} className="md:col-span-3" isTextArea />
+
+               {/* 3. PPK & DPP */}
+               <div className="col-span-full font-semibold text-slate-800 border-b pb-1 mt-2">PPK & DPP</div>
+               <FormField label="Nama PPK" value={currentItem.namaPpk} onChange={(v: string) => updateField("namaPpk", v)} />
+               <FormField label="Kode PPK" value={currentItem.kodePpk} onChange={(v: string) => updateField("kodePpk", v)} />
+               <FormField label="Nomor Surat PPK" value={currentItem.nomorSuratPpk} onChange={(v: string) => updateField("nomorSuratPpk", v)} />
+               <FormField label="Tanggal DPP" type="date" value={dateToInput(currentItem.tanggalDpp)} onChange={(v: string) => updateField("tanggalDpp", inputToDate(v))} />
+               <FormField label="Hal PPK" value={currentItem.halPpk} onChange={(v: string) => updateField("halPpk", v)} className="md:col-span-2" isTextArea />
+
+               {/* 4. Paket & Anggaran */}
+               <div className="col-span-full font-semibold text-slate-800 border-b pb-1 mt-2">Paket & Anggaran</div>
+               <FormField label="Nama Paket PBJ" value={currentItem.namaPaketPbj} onChange={(v: string) => updateField("namaPaketPbj", v)} className="md:col-span-3" isTextArea />
                <FormField label="Pagu Anggaran (Aktif)" type="number" value={currentItem.paguAnggaranAktif} onChange={(v: string) => updateField("paguAnggaranAktif", Number(v))} />
                <FormField label="Pagu Anggaran (Non Aktif)" type="number" value={currentItem.paguAnggaranNonAktif} onChange={(v: string) => updateField("paguAnggaranNonAktif", Number(v))} />
                <FormField label="HPS" type="number" value={currentItem.hps} onChange={(v: string) => updateField("hps", Number(v))} />
-               
-               <FormField label="Nama PPK" value={currentItem.namaPpk} onChange={(v: string) => updateField("namaPpk", v)} />
-               <FormField label="Kode PPK" value={currentItem.kodePpk} onChange={(v: string) => updateField("kodePpk", v)} />
-               
-               <FormField label="Keterangan Tambahan" value={currentItem.keteranganTambahan} onChange={(v: string) => updateField("keteranganTambahan", v)} className="md:col-span-3" />
+
+               {/* 5. MAK & Lainnya */}
+               <div className="col-span-full font-semibold text-slate-800 border-b pb-1 mt-2">MAK & Lainnya</div>
+               <FormField label="Kode MAK" value={currentItem.kodeMak} onChange={(v: string) => updateField("kodeMak", v)} />
+               <FormField label="No. MAK" value={currentItem.noMak} onChange={(v: string) => updateField("noMak", v)} />
+               <FormField label="Uraian MAK (Induk)" value={currentItem.uraianMakInduk} onChange={(v: string) => updateField("uraianMakInduk", v)} isTextArea />
+               <FormField label="Uraian MAK (Rinci)" value={currentItem.uraianMakRinci} onChange={(v: string) => updateField("uraianMakRinci", v)} className="md:col-span-3" isTextArea />
+               <FormField label="Pokja Belanja Modal" value={currentItem.pokjaBelanjaModal} onChange={(v: string) => updateField("pokjaBelanjaModal", v)} />
+               <FormField label="Pokja Belanja OPRS" value={currentItem.pokjaBelanjaOprs} onChange={(v: string) => updateField("pokjaBelanjaOprs", v)} />
+               <FormField label="Ka.ULP" value={currentItem.kaUlp} onChange={(v: string) => updateField("kaUlp", v)} />
+               <FormField label="Keterangan Tambahan" value={currentItem.keteranganTambahan} onChange={(v: string) => updateField("keteranganTambahan", v)} className="col-span-full" isTextArea />
             </div>
 
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
@@ -274,16 +295,24 @@ export function MasterDataView({ data: initialData, isLoading }: MasterDataViewP
   );
 }
 
-function FormField({ label, value, onChange, type = "text", className = "" }: any) {
+function FormField({ label, value, onChange, type = "text", className = "", isTextArea = false }: any) {
     return (
         <div className={`space-y-1 ${className}`}>
             <label className="text-xs font-medium text-slate-500 uppercase">{label}</label>
-            <input 
-                type={type}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={value || ""}
-                onChange={e => onChange(e.target.value)}
-            />
+            {isTextArea ? (
+                <textarea
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                    value={value || ""}
+                    onChange={e => onChange(e.target.value)}
+                />
+            ) : (
+                <input 
+                    type={type}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={value || ""}
+                    onChange={e => onChange(e.target.value)}
+                />
+            )}
         </div>
     )
 }
