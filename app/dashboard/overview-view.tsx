@@ -4,12 +4,13 @@ import {
   TrendingUp,
   ArrowUpRight,
   Activity,
-  Layers
+  Layers,
+  PieChart as PieChartIcon,
+  BarChart as BarChartIcon
 } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -164,21 +165,21 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
   }
 
   return (
-    <div className="space-y-4 p-1">
-      {/* 1. KPI Cards Row */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pagu Anggaran
+    <div className="flex flex-col gap-4 h-full lg:h-[calc(100vh-180px)] w-full">
+      {/* 1. KPI Cards Row (Fixed Height on Desktop) */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 shrink-0">
+        <Card className="shadow-sm flex flex-col justify-center">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Total Pagu
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             {isLoading ? <Skeleton className="h-8 w-24" /> : (
               <>
-                <div className="text-2xl font-bold">{formatLargeCurrency(stats.totalPagu)}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-xl lg:text-2xl font-bold">{formatLargeCurrency(stats.totalPagu)}</div>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1">
                   Dari {stats.totalPackages} paket terdaftar
                 </p>
               </>
@@ -186,18 +187,18 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
         
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="shadow-sm flex flex-col justify-center">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Total HPS
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             {isLoading ? <Skeleton className="h-8 w-24" /> : (
               <>
-                <div className="text-2xl font-bold">{formatLargeCurrency(stats.totalHps)}</div>
-                <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                <div className="text-xl lg:text-2xl font-bold">{formatLargeCurrency(stats.totalHps)}</div>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1 flex items-center">
                   <span className="text-emerald-600 font-medium mr-1">
                     {(stats.totalPagu > 0 ? (stats.totalHps/stats.totalPagu)*100 : 0).toFixed(1)}%
                   </span>
@@ -208,18 +209,18 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Penghematan
+        <Card className="shadow-sm flex flex-col justify-center">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Total Hemat
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
              {isLoading ? <Skeleton className="h-8 w-24" /> : (
               <>
-                <div className="text-2xl font-bold text-emerald-600">{formatLargeCurrency(stats.totalSavings)}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-xl lg:text-2xl font-bold text-emerald-600">{formatLargeCurrency(stats.totalSavings)}</div>
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1">
                   {stats.savingsPercentage.toFixed(1)}% efisiensi anggaran
                 </p>
               </>
@@ -227,20 +228,20 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Metode Terbanyak
+        <Card className="shadow-sm flex flex-col justify-center">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Metode Top
             </CardTitle>
             <Layers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
              {isLoading ? <Skeleton className="h-8 w-24" /> : (
               <>
-                <div className="text-lg font-bold truncate" title={stats.byMethod[0]?.name}>
+                <div className="text-lg lg:text-xl font-bold truncate" title={stats.byMethod[0]?.name}>
                   {stats.byMethod[0]?.name || "-"}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1">
                   {stats.byMethod[0]?.count || 0} paket ({stats.byMethod[0]?.share.toFixed(1)}% share)
                 </p>
               </>
@@ -249,22 +250,21 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
         </Card>
       </div>
 
-      {/* 2. Main Chart & Breakdown Section */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7 lg:h-[450px]">
-        {/* Main Trend Chart (Left - 4 cols) */}
-        <Card className="col-span-1 lg:col-span-4 flex flex-col shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle>Trend Realisasi Anggaran</CardTitle>
-              <CardDescription>
-                Perbandingan Pagu vs HPS dan Tingkat Efisiensi Harian
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="icon" onClick={() => setActiveModal("trend")}>
-              <ArrowUpRight className="h-4 w-4" />
-            </Button>
+      {/* 2. Main Grid Layout (Flexible Height) */}
+      <div className="flex-1 grid gap-3 grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 min-h-0">
+        
+        {/* Top Left: Trend Chart (2 cols) */}
+        <Card className="lg:col-span-2 shadow-sm flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0">
+             <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Trend Realisasi Anggaran</CardTitle>
+             </div>
+             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("trend")}>
+                <ArrowUpRight className="h-3 w-3" />
+             </Button>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0">
+          <CardContent className="flex-1 min-h-0 p-2">
             {isLoading ? <Skeleton className="h-full w-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -277,36 +277,37 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis 
                     dataKey="label" 
-                    tick={{fontSize: 11, fill: '#64748b'}} 
+                    tick={{fontSize: 10, fill: '#64748b'}} 
                     axisLine={false} 
                     tickLine={false} 
                     minTickGap={30}
                   />
                   <YAxis 
                     yAxisId="left" 
-                    tick={{fontSize: 11, fill: '#64748b'}} 
+                    tick={{fontSize: 10, fill: '#64748b'}} 
                     axisLine={false} 
                     tickLine={false}
                     tickFormatter={(value) => `${(value / 1_000_000_000).toFixed(0)}M`}
+                    width={40}
                   />
                   <YAxis 
                     yAxisId="right" 
                     orientation="right" 
-                    tick={{fontSize: 11, fill: '#64748b'}} 
+                    tick={{fontSize: 10, fill: '#64748b'}} 
                     axisLine={false} 
                     tickLine={false}
                     unit="%"
                     domain={[0, 'auto']}
+                    width={30}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                     formatter={(value: any, name: any) => {
                       if (name === "Efisiensi") return [`${Number(value).toFixed(2)}%`, name];
                       return [`Rp ${Number(value).toLocaleString('id-ID')}`, name];
                     }}
-                    labelStyle={{ color: '#64748b', marginBottom: '0.5rem' }}
                   />
-                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Legend verticalAlign="top" height={24} iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                   <Area 
                     yAxisId="left" 
                     type="monotone" 
@@ -341,25 +342,26 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
 
-        {/* Breakdown Charts (Right - 3 cols) */}
-        <div className="col-span-1 lg:col-span-3 grid grid-cols-1 gap-4 lg:grid-rows-2">
-          {/* Pie Chart: Method */}
-          <Card className="shadow-sm flex flex-col">
-            <CardHeader className="pb-2">
-               <CardTitle className="text-sm">Komposisi Metode Pengadaan</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0 flex items-center justify-center">
+        {/* Top Right: Method Pie (1 col) */}
+        <Card className="lg:col-span-1 shadow-sm flex flex-col">
+           <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0">
+             <div className="flex items-center gap-2">
+                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Metode Pengadaan</CardTitle>
+             </div>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 p-2 relative flex flex-col items-center justify-center">
               {isLoading ? <Skeleton className="h-full w-full rounded-full" /> : (
-                <div className="w-full h-full flex items-center">
-                   <div className="w-1/2 h-full">
+                <>
+                  <div className="w-full h-[60%]">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={stats.byMethod}
                             cx="50%"
                             cy="50%"
-                            innerRadius={35}
-                            outerRadius={55}
+                            innerRadius={30}
+                            outerRadius={50}
                             paddingAngle={2}
                             dataKey="pagu"
                           >
@@ -369,110 +371,67 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                           </Pie>
                           <Tooltip 
                              formatter={(value: any) => formatCurrency(value)}
-                             contentStyle={{ fontSize: '12px', borderRadius: '8px' }}
+                             contentStyle={{ fontSize: '11px', borderRadius: '8px' }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
                    </div>
-                   <div className="w-1/2 text-xs space-y-1 overflow-y-auto max-h-[140px] pr-2">
-                      {stats.byMethod.map((entry, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                           <div className="flex items-center gap-1.5 truncate max-w-[100px]" title={entry.name}>
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                   <div className="w-full h-[40%] text-[10px] space-y-1 overflow-y-auto px-2 custom-scrollbar">
+                      {stats.byMethod.slice(0, 4).map((entry, index) => (
+                        <div key={index} className="flex items-center justify-between border-b border-dashed border-gray-100 pb-1 last:border-0">
+                           <div className="flex items-center gap-1.5 truncate max-w-[120px]" title={entry.name}>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                               <span className="truncate">{entry.name}</span>
                            </div>
-                           <span className="font-medium">{entry.share.toFixed(0)}%</span>
+                           <span className="font-medium text-gray-600">{entry.share.toFixed(0)}%</span>
                         </div>
                       ))}
                    </div>
-                </div>
+                </>
               )}
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
 
-          {/* Bar Chart: Unit Kerja */}
-          <Card className="shadow-sm flex flex-col">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-               <CardTitle className="text-sm">Top 5 Unit Kerja (by Pagu)</CardTitle>
-               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("breakdown")}>
-                  <ArrowUpRight className="h-3 w-3" />
-               </Button>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-0">
-               {isLoading ? <Skeleton className="h-full w-full" /> : (
-                 <ResponsiveContainer width="100%" height="100%">
-                   <BarChart
-                      layout="vertical"
-                      data={stats.byUnitKerja.slice(0, 5)}
-                      margin={{ top: 0, right: 20, left: 0, bottom: 0 }}
-                      barSize={16}
-                   >
-                     <XAxis type="number" hide />
-                     <YAxis 
-                       type="category" 
-                       dataKey="name" 
-                       width={100} 
-                       tick={{ fontSize: 10, fill: '#64748b' }}
-                       tickFormatter={(val) => val.length > 15 ? val.substring(0, 15) + '...' : val}
-                       interval={0}
-                     />
-                     <Tooltip 
-                       cursor={{ fill: 'transparent' }}
-                       contentStyle={{ fontSize: '12px', borderRadius: '8px' }}
-                       formatter={(val: any) => formatCurrency(val)}
-                     />
-                     <Bar dataKey="pagu" radius={[0, 4, 4, 0]}>
-                       {stats.byUnitKerja.slice(0, 5).map((_, index) => (
-                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                       ))}
-                     </Bar>
-                   </BarChart>
-                 </ResponsiveContainer>
-               )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* 3. Bottom Table Section */}
-      <Card className="shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div>
-            <CardTitle>Top 5 Paket Terbesar</CardTitle>
-            <CardDescription>Berdasarkan Nilai Pagu Anggaran</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setActiveModal("risk")}>
-            Lihat Semua
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? <Skeleton className="h-32 w-full" /> : (
-            <div className="relative w-full overflow-auto">
-              <table className="w-full caption-bottom text-sm">
-                <thead className="[&_tr]:border-b">
-                  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                    <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground">Nama Paket</th>
-                    <th className="h-10 px-2 text-left align-middle font-medium text-muted-foreground">Unit Kerja</th>
-                    <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground">Pagu</th>
-                    <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground">HPS</th>
-                    <th className="h-10 px-2 text-right align-middle font-medium text-muted-foreground">Efisiensi</th>
+        {/* Bottom Left: Top Projects (2 cols) */}
+        <Card className="lg:col-span-2 shadow-sm flex flex-col overflow-hidden">
+           <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0 bg-white z-10">
+             <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Top 5 Paket Terbesar</CardTitle>
+             </div>
+             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("risk")}>
+                <ArrowUpRight className="h-3 w-3" />
+             </Button>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 p-0 overflow-auto">
+            {isLoading ? <Skeleton className="h-full w-full" /> : (
+              <table className="w-full text-xs text-left">
+                <thead className="sticky top-0 bg-muted/20 text-muted-foreground font-medium z-10">
+                  <tr>
+                    <th className="px-3 py-2 font-medium w-[40%]">Nama Paket</th>
+                    <th className="px-3 py-2 font-medium w-[20%]">Unit</th>
+                    <th className="px-3 py-2 font-medium text-right w-[20%]">Pagu</th>
+                    <th className="px-3 py-2 font-medium text-right w-[20%]">Efisiensi</th>
                   </tr>
                 </thead>
-                <tbody className="[&_tr:last-child]:border-0">
+                <tbody className="divide-y divide-gray-100">
                   {stats.topProjects.map((project, idx) => {
                      const efficiency = project.pagu > 0 ? ((project.pagu - project.hps) / project.pagu) * 100 : 0;
                      return (
-                      <tr key={idx} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                        <td className="p-2 align-middle font-medium max-w-[200px] truncate" title={project.name}>
-                          {project.name}
+                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-3 py-2 align-top">
+                          <div className="line-clamp-2 font-medium text-gray-700" title={project.name}>
+                            {project.name}
+                          </div>
                         </td>
-                        <td className="p-2 align-middle max-w-[150px] truncate" title={project.unit}>
-                          {project.unit}
+                        <td className="px-3 py-2 align-top text-gray-500">
+                          <div className="line-clamp-1" title={project.unit}>{project.unit}</div>
                         </td>
-                        <td className="p-2 align-middle text-right">{formatLargeCurrency(project.pagu)}</td>
-                        <td className="p-2 align-middle text-right">{formatLargeCurrency(project.hps)}</td>
-                        <td className="p-2 align-middle text-right">
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${efficiency > 10 ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <td className="px-3 py-2 align-top text-right font-medium text-gray-700">
+                          {formatLargeCurrency(project.pagu)}
+                        </td>
+                        <td className="px-3 py-2 align-top text-right">
+                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${efficiency > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                             {efficiency.toFixed(1)}%
                           </span>
                         </td>
@@ -481,11 +440,56 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                   })}
                 </tbody>
               </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
 
+        {/* Bottom Right: Unit Bar (1 col) */}
+        <Card className="lg:col-span-1 shadow-sm flex flex-col">
+           <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0">
+             <div className="flex items-center gap-2">
+                <BarChartIcon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Top Unit Kerja</CardTitle>
+             </div>
+             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("breakdown")}>
+                <ArrowUpRight className="h-3 w-3" />
+             </Button>
+          </CardHeader>
+          <CardContent className="flex-1 min-h-0 p-2">
+             {isLoading ? <Skeleton className="h-full w-full" /> : (
+               <ResponsiveContainer width="100%" height="100%">
+                 <BarChart
+                    layout="vertical"
+                    data={stats.byUnitKerja.slice(0, 5)}
+                    margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+                    barSize={12}
+                 >
+                   <XAxis type="number" hide />
+                   <YAxis 
+                     type="category" 
+                     dataKey="name" 
+                     width={90} 
+                     tick={{ fontSize: 10, fill: '#64748b' }}
+                     tickFormatter={(val) => val.length > 12 ? val.substring(0, 12) + '...' : val}
+                     interval={0}
+                   />
+                   <Tooltip 
+                     cursor={{ fill: 'transparent' }}
+                     contentStyle={{ fontSize: '11px', borderRadius: '8px' }}
+                     formatter={(val: any) => formatCurrency(val)}
+                   />
+                   <Bar dataKey="pagu" radius={[0, 4, 4, 0]}>
+                     {stats.byUnitKerja.slice(0, 5).map((_, index) => (
+                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                     ))}
+                   </Bar>
+                 </BarChart>
+               </ResponsiveContainer>
+             )}
+          </CardContent>
+        </Card>
+
+      </div>
       {modal}
     </div>
   );

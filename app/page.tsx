@@ -41,7 +41,7 @@ const orderedViews: DashboardView[] = ["overview", "paket", "anggaran", "progres
 
 export default function Home() {
   const [activeView, setActiveView] = useState<DashboardView>("overview");
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [ulpData, setUlpData] = useState<UlpData[]>([]);
   const [period, setPeriod] = useState<PeriodState>(() => {
@@ -214,7 +214,7 @@ export default function Home() {
           className="flex h-full flex-col"
         >
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
+            {/* <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs text-[#5B6B7F]">
                 <span>Monitoring</span>
                 <span className="h-4 w-px bg-[#C9D7E8]" />
@@ -231,7 +231,7 @@ export default function Home() {
                   Semua Unit Kerja
                 </Badge>
               </div>
-            </div>
+            </div> */}
             <div className="flex flex-wrap items-center gap-2 lg:gap-3">
               <TabsList>
                 <TabsTrigger value="overview" className="gap-2">
