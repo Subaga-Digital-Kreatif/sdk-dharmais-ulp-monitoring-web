@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "SIP H2H Dashboard",
-    short_name: "SIP H2H",
-    description: "Dashboard Monitoring Kredit Konsumtif Tercover Asuransi",
+    name: "Dashboard Monitoring ULP",
+    short_name: "ULP Dashboard",
+    description: "Dashboard Monitoring Unit Layanan Pengadaan RS Kanker Dharmais",
     start_url: "/",
     display: "standalone",
     background_color: "#F7FBFF",

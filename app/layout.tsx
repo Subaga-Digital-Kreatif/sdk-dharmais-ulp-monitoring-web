@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SIP H2H Dashboard",
-  description: "Dashboard Monitoring Kredit Konsumtif Tercover Asuransi",
-  applicationName: "SIP H2H Dashboard",
+  title: "Dashboard Monitoring ULP",
+  description: "Dashboard Monitoring Unit Layanan Pengadaan RS Kanker Dharmais",
+  applicationName: "Dashboard Monitoring ULP",
   themeColor: "#0066CC",
 };
 
