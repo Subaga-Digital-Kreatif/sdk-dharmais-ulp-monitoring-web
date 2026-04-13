@@ -1,79 +1,105 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowRight,
-  Eye,
-  EyeOff,
-  LineChart,
-  Lock,
-  ShieldCheck,
-  User,
-} from "lucide-react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { ArrowRight, Eye, EyeOff, LineChart, Lock, Mail, ShieldCheck } from "lucide-react";
+import { isAxiosError } from "axios";
+import { z } from "zod";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { AUTH_USER_STORAGE_KEY, auth, type AuthUser } from "@/models/auth";
+import { apiToken } from "@/models/api";
 
-type LoginStatus = "idle" | "submitting";
+const loginSchema = z.object({
+  email: z.string().trim().min(1, "Email wajib diisi.").email("Format email tidak valid."),
+  password: z.string().min(1, "Password wajib diisi."),
+  remember: z.boolean(),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+
+function persistSession(remember: boolean) {
+  try {
+    if (remember) {
+      localStorage.setItem("ulp_auth_demo", "1");
+    } else {
+      sessionStorage.setItem("ulp_auth_demo", "1");
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function persistAuthUser(user: AuthUser, remember: boolean) {
+  try {
+    const payload = JSON.stringify(user);
+    if (remember) {
+      localStorage.setItem(AUTH_USER_STORAGE_KEY, payload);
+      sessionStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    } else {
+      sessionStorage.setItem(AUTH_USER_STORAGE_KEY, payload);
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<LoginStatus>("idle");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      remember: true,
+    },
+    mode: "onChange",
+  });
+
+  const { register, control, handleSubmit, setError, formState } = form;
+  const { errors, isSubmitting, isValid } = formState;
+
+  async function onSubmit(values: LoginFormValues) {
     try {
-      const ok =
-        localStorage.getItem("ulp_auth_demo") === "1" ||
-        sessionStorage.getItem("ulp_auth_demo") === "1";
-      if (ok) router.replace("/");
-    } catch {
-    }
-  }, [router]);
-
-  const canSubmit = useMemo(() => {
-    return status !== "submitting" && username.trim().length > 0 && password.length > 0;
-  }, [password.length, status, username]);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    const u = username.trim();
-    if (!u || !password) {
-      setError("Username dan password wajib diisi.");
-      return;
-    }
-
-    setStatus("submitting");
-    await new Promise((r) => setTimeout(r, 550));
-
-    const ok = u.toLowerCase() === "admin" && password === "admin";
-    if (!ok) {
-      setStatus("idle");
-      setError("Login gagal. Gunakan akun demo: admin / admin.");
-      return;
-    }
-
-    try {
-      if (remember) {
-        localStorage.setItem("ulp_auth_demo", "1");
-      } else {
-        sessionStorage.setItem("ulp_auth_demo", "1");
+      const data = await auth.login(values.email, values.password);
+      if (data.token) {
+        apiToken.set(data.token);
       }
-    } catch {
+      persistAuthUser(data.user, values.remember);
+      persistSession(values.remember);
+      router.push("/");
+    } catch (err) {
+      let message = "Login gagal. Periksa email dan password Anda.";
+      if (isAxiosError(err)) {
+        const d = err.response?.data;
+        if (typeof d === "string" && d.trim()) {
+          message = d;
+        } else if (d && typeof d === "object" && "message" in d) {
+          const m = (d as { message?: unknown }).message;
+          if (typeof m === "string" && m.trim()) message = m;
+        } else if (err.message) {
+          message = err.message;
+        }
+      }
+      setError("root", { message });
     }
-
-    router.push("/");
   }
 
   return (
@@ -101,8 +127,9 @@ export default function LoginPage() {
                 Masuk untuk mengelola dan memantau pengadaan
               </h1>
               <p className="mt-2 text-sm text-[#5B6B7F]">
-                Halaman login ini menggunakan autentikasi demo. Integrasi autentikasi
-                sebenarnya bisa ditambahkan kemudian tanpa mengubah layout.
+                Halaman login terhubung ke API autentikasi. Pastikan{" "}
+                <code className="rounded bg-[#E6F3FF] px-1">NEXT_PUBLIC_API_URL</code>{" "}
+                sudah dikonfigurasi.
               </p>
             </div>
 
@@ -118,16 +145,11 @@ export default function LoginPage() {
 
           <div className="relative mt-10 grid gap-3 rounded-2xl border border-[#E1ECF7] bg-[#F7FBFF] p-4 text-sm lg:mt-0">
             <div className="text-xs font-medium uppercase tracking-wide text-[#5B6B7F]">
-              Demo Credential
+              Akses
             </div>
-            <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2">
-              <span className="text-[#5B6B7F]">Username</span>
-              <span className="font-semibold">admin</span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2">
-              <span className="text-[#5B6B7F]">Password</span>
-              <span className="font-semibold">admin</span>
-            </div>
+            <p className="text-[#5B6B7F]">
+              Gunakan kredensial yang diberikan administrator sistem untuk lingkungan ini.
+            </p>
           </div>
         </div>
 
@@ -138,60 +160,71 @@ export default function LoginPage() {
               <CardDescription>Masukkan kredensial Anda untuk melanjutkan.</CardDescription>
             </CardHeader>
             <CardContent className="p-5">
-              <form className="grid gap-4" onSubmit={handleSubmit}>
-                <div className="grid gap-2">
-                  <label className="text-xs font-medium text-[#5B6B7F]" htmlFor="username">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5B6B7F]" />
-                    <Input
-                      id="username"
-                      autoComplete="username"
-                      className="h-10 border-[#C9E3FF] bg-white pl-9 focus-visible:ring-[#0066CC]"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="admin"
-                    />
-                  </div>
-                </div>
+              <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+                <FieldGroup>
+                  <Field data-invalid={!!errors.email}>
+                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <FieldContent>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5B6B7F]" />
+                        <Input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          className="h-10 border-[#C9E3FF] bg-white pl-9 focus-visible:ring-[#0066CC]"
+                          placeholder="admin@subagakreatif.com"
+                          aria-invalid={!!errors.email}
+                          {...register("email")}
+                        />
+                      </div>
+                      <FieldError errors={[errors.email]} />
+                    </FieldContent>
+                  </Field>
 
-                <div className="grid gap-2">
-                  <label className="text-xs font-medium text-[#5B6B7F]" htmlFor="password">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5B6B7F]" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      className="h-10 border-[#C9E3FF] bg-white pl-9 pr-10 focus-visible:ring-[#0066CC]"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-[#5B6B7F] hover:bg-[#E6F3FF] hover:text-[#0066CC]"
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                  <Field data-invalid={!!errors.password}>
+                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <FieldContent>
+                      <div className="relative">
+                        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5B6B7F]" />
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
+                          className="h-10 border-[#C9E3FF] bg-white pl-9 pr-10 focus-visible:ring-[#0066CC]"
+                          placeholder="••••••••"
+                          aria-invalid={!!errors.password}
+                          {...register("password")}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-[#5B6B7F] hover:bg-[#E6F3FF] hover:text-[#0066CC]"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      <FieldError errors={[errors.password]} />
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
 
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={remember}
-                      onCheckedChange={(v) => setRemember(Boolean(v))}
-                      aria-label="Remember session"
+                    <Controller
+                      name="remember"
+                      control={control}
+                      render={({ field }) => (
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          aria-label="Ingat sesi"
+                        />
+                      )}
                     />
                     <div className="leading-tight">
                       <div className="text-xs font-medium">Remember</div>
@@ -207,14 +240,17 @@ export default function LoginPage() {
                   </Link>
                 </div>
 
-                {error ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    {error}
+                {errors.root ? (
+                  <div
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                    role="alert"
+                  >
+                    {errors.root.message}
                   </div>
                 ) : null}
 
-                <Button type="submit" className="h-10 gap-2" disabled={!canSubmit}>
-                  {status === "submitting" ? "Memproses..." : "Masuk"}
+                <Button type="submit" className="h-10 gap-2" disabled={!isValid || isSubmitting}>
+                  {isSubmitting ? "Memproses..." : "Masuk"}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
 

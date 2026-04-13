@@ -18,6 +18,7 @@ import { satkerSection } from "./satker";
 import { ppkSection } from "./ppk";
 import { persiapanSection } from "./persiapan";
 import { prosesSection } from "./proses";
+import { userSection } from "./users";
 
 export const sections = [
   perusahaanSection,
@@ -26,6 +27,7 @@ export const sections = [
   ppkSection,
   persiapanSection,
   prosesSection,
+  userSection,
 ] as const;
 
 export const sectionsById = {
@@ -35,5 +37,6 @@ export const sectionsById = {
   ppk: ppkSection,
   persiapan: persiapanSection,
   proses: prosesSection,
+  users: userSection,
 } as const;
 

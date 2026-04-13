@@ -1,60 +1,79 @@
 import { Layers3 } from "lucide-react";
-import { toFlat } from "./utils";
+
 import type { MakCode, MakKategori, SectionDef } from "./section-types";
+
+const kategoriOptions = [
+  { value: "Belanja Operasional", label: "Belanja Operasional" },
+  { value: "Belanja Modal", label: "Belanja Modal" },
+] as const;
 
 export const makSection: SectionDef<MakCode, "mak"> = {
   id: "mak",
   label: "Kode MAK",
   icon: Layers3,
   columns: ["ID", "Kategori", "Kode", "Induk", "Rinci", "No"],
-  pick: (x) => x.mak_rinci,
+  pick: (x) => x.makRinci,
   toRow: (x) => [
     String(x.id),
-    x.mak_kategori,
-    x.mak_kode,
-    x.mak_induk,
-    x.mak_rinci,
-    x.mak_no,
+    x.makKategori,
+    x.makKode,
+    x.makInduk,
+    x.makRinci,
+    x.makNo,
   ],
   filters: [
     {
-      name: "mak_kategori",
+      name: "makKategori",
       label: "Kategori",
-      select: [
-        { value: "Belanja Operasional", label: "Belanja Operasional" },
-        { value: "Belanja Modal", label: "Belanja Modal" },
-      ],
+      select: [...kategoriOptions],
     },
-    { name: "mak_kode", label: "Kode" },
-    { name: "mak_no", label: "No" },
-    { name: "mak_induk", label: "Induk" },
+    { name: "makKode", label: "Kode" },
+    { name: "makNo", label: "No" },
+    { name: "makInduk", label: "Induk" },
   ],
   fields: [
     {
-      name: "mak_kategori",
+      name: "makKategori",
       label: "Kategori",
-      select: [
-        { value: "Belanja Operasional", label: "Belanja Operasional" },
-        { value: "Belanja Modal", label: "Belanja Modal" },
-      ],
+      select: [...kategoriOptions],
+      allowEmpty: false,
     },
-    { name: "mak_kode", label: "Kode" },
-    { name: "mak_induk", label: "Induk" },
-    { name: "mak_rinci", label: "Rinci" },
-    { name: "mak_no", label: "No" },
-    { name: "mak_keterangan", label: "Keterangan", textarea: true },
+    { name: "makKode", label: "Kode" },
+    { name: "makInduk", label: "Induk" },
+    { name: "makRinci", label: "Rinci" },
+    { name: "makNo", label: "No" },
+    { name: "makKeterangan", label: "Keterangan", textarea: true },
   ],
-  initial: (item) => toFlat(item),
-  build: ({ formData, prev, items }) => ({
-    id: prev?.id ?? Math.max(0, ...items.map((m) => m.id)) + 1,
-    mak_kategori: (formData.mak_kategori as MakKategori) || "Belanja Operasional",
-    mak_kode: formData.mak_kode || "",
-    mak_induk: formData.mak_induk || "",
-    mak_rinci: formData.mak_rinci || "",
-    mak_no: formData.mak_no || "",
-    mak_keterangan: formData.mak_keterangan || "",
-    created_at: prev?.created_at ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    deleted_at: null,
+  initial: (item) => {
+    if (!item) {
+      return {
+        makKategori: "Belanja Operasional",
+        makKode: "",
+        makInduk: "",
+        makRinci: "",
+        makNo: "",
+        makKeterangan: "",
+      };
+    }
+    return {
+      makKategori: item.makKategori ?? "",
+      makKode: item.makKode ?? "",
+      makInduk: item.makInduk ?? "",
+      makRinci: item.makRinci ?? "",
+      makNo: item.makNo ?? "",
+      makKeterangan: item.makKeterangan ?? "",
+    };
+  },
+  build: ({ formData, prev }) => ({
+    id: prev?.id ?? 0,
+    makKategori: (formData.makKategori as MakKategori) || "Belanja Operasional",
+    makKode: formData.makKode || "",
+    makInduk: formData.makInduk || "",
+    makRinci: formData.makRinci || "",
+    makNo: formData.makNo || "",
+    makKeterangan: formData.makKeterangan || "",
+    createdAt: prev?.createdAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deletedAt: null,
   }),
 };

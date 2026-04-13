@@ -10,9 +10,11 @@ import {
   LineChart,
   LogOut,
   MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +28,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
+import { AUTH_USER_STORAGE_KEY } from "@/models/auth";
+import { apiToken } from "@/models/api";
+import { makCode } from "@/models/mak-code";
+import { satkerUnitCode } from "@/models/satker-unit-code";
+import { stagePreparation } from "@/models/stage-preparation";
+import { formDataToStageProcessPayload, stageProcess } from "@/models/stage-process";
+import { ulpPerusahaanCode } from "@/models/ulp-perusahaan-code";
+import { ulpPpkCode } from "@/models/ulp-ppk-code";
+import { cn } from "@/lib/utils";
+import { user } from "@/models/user";
 import { sections, sectionsById, type Field, type MakCode, type MenuId, type Perusahaan, type PpkCode, type SatkerUnit, type StagePreparation, type StageProcess } from "./sections";
+import { userModalFields } from "./sections/users";
 export default function MasterDataPage() {
   const router = useRouter();
   const [active, setActive] = useState<MenuId>("perusahaan");
@@ -37,6 +57,7 @@ export default function MasterDataPage() {
   const [ppkCodes, setPpkCodes] = useState<PpkCode[]>([]);
   const [preps, setPreps] = useState<StagePreparation[]>([]);
   const [procs, setProcs] = useState<StageProcess[]>([]);
+  const [usersList, setUsersList] = useState<User[]>([]);
   const [search, setSearch] = useState<string>("");
   const [tableFilters, setTableFilters] = useState<Record<string, string>>({});
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -44,43 +65,145 @@ export default function MasterDataPage() {
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
 
-  const isAuthed = useMemo(() => {
-    if (typeof window === "undefined") return false;
+  const [authReady, setAuthReady] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
     try {
-      return (
+      const ok =
         localStorage.getItem("ulp_auth_demo") === "1" ||
-        sessionStorage.getItem("ulp_auth_demo") === "1"
-      );
+        sessionStorage.getItem("ulp_auth_demo") === "1";
+      setIsAuthed(ok);
     } catch {
-      return false;
+      setIsAuthed(false);
     }
+    setAuthReady(true);
   }, []);
 
   useEffect(() => {
-    if (!isAuthed) router.replace("/login");
-  }, [isAuthed, router]);
+    if (!authReady || isAuthed) return;
+    router.replace("/login");
+  }, [authReady, isAuthed, router]);
 
   useEffect(() => {
-    async function load() {
+    if (!authReady || !isAuthed || active !== "perusahaan") return;
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await fetch("/api/master-data", { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
-        setCompanies(json.perusahaan || []);
-        setMakCodes(json.mak || []);
-        setSatkers(json.satker || []);
-        setPpkCodes(json.ppk || []);
-        setPreps(json.persiapan || []);
-        setProcs(json.proses || []);
-      } catch {}
-    }
-    load();
-  }, []);
+        const res = await ulpPerusahaanCode.getAll();
+        if (!cancelled) setCompanies(res.data);
+      } catch {
+        if (!cancelled) setCompanies([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || active !== "ppk") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await ulpPpkCode.getAll();
+        if (!cancelled) setPpkCodes(res.data);
+      } catch {
+        if (!cancelled) setPpkCodes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || active !== "users") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await user.getAll();
+        if (!cancelled) setUsersList(res.data);
+      } catch {
+        if (!cancelled) setUsersList([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || active !== "mak") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await makCode.getAll();
+        if (!cancelled) setMakCodes(res.data);
+      } catch {
+        if (!cancelled) setMakCodes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || active !== "satker") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await satkerUnitCode.getAll();
+        if (!cancelled) setSatkers(res.data);
+      } catch {
+        if (!cancelled) setSatkers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || active !== "persiapan") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await stagePreparation.getAll();
+        if (!cancelled) setPreps(res.data);
+      } catch {
+        if (!cancelled) setPreps([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || active !== "proses") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await stageProcess.getAll();
+        if (!cancelled) setProcs(res.data);
+      } catch {
+        if (!cancelled) setProcs([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, isAuthed, active]);
 
   const handleLogout = () => {
     try {
+      apiToken.delete();
       localStorage.removeItem("ulp_auth_demo");
       sessionStorage.removeItem("ulp_auth_demo");
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_USER_STORAGE_KEY);
     } catch {
     }
     router.push("/login");
@@ -112,82 +235,318 @@ export default function MasterDataPage() {
 
   function saveCurrent(formData: Record<string, string>) {
     if (active === "perusahaan") {
-      const section = sectionsById.perusahaan;
       const prev = editIndex >= 0 ? companies[editIndex] : undefined;
-      const next = section.build({ formData, prev, items: companies });
-      const arr = [...companies];
-      if (editIndex >= 0) arr[editIndex] = next;
-      else arr.unshift(next);
-      setCompanies(arr);
+      void (async () => {
+        try {
+          const payload = {
+            perusahaanNama: formData.perusahaanNama?.trim() || "",
+            perusahaanPimpinanNama:
+              formData.perusahaanPimpinanNama?.trim() || "",
+            perusahaanContact: formData.perusahaanContact?.trim() || "",
+            perusahaanAlamat: formData.perusahaanAlamat?.trim() || "",
+            perusahaanKbli: formData.perusahaanKbli?.trim() || "",
+          };
+          if (editIndex >= 0 && prev) {
+            const updated = await ulpPerusahaanCode.update(prev.id, payload);
+            setCompanies((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((c) => c.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await ulpPerusahaanCode.create(payload);
+            setCompanies((list) => [created, ...list]);
+          }
+        } catch {
+          return;
+        }
+        resetModal();
+      })();
+      return;
     } else if (active === "mak") {
-      const section = sectionsById.mak;
       const prev = editIndex >= 0 ? makCodes[editIndex] : undefined;
-      const next = section.build({ formData, prev, items: makCodes });
-      const arr = [...makCodes];
-      if (editIndex >= 0) arr[editIndex] = next;
-      else arr.unshift(next);
-      setMakCodes(arr);
+      void (async () => {
+        try {
+          const payload = {
+            makKategori: formData.makKategori?.trim() || "",
+            makKode: formData.makKode?.trim() || "",
+            makInduk: formData.makInduk?.trim() || "",
+            makRinci: formData.makRinci?.trim() || "",
+            makNo: formData.makNo?.trim() || "",
+            makKeterangan: formData.makKeterangan?.trim() || "",
+          };
+          if (editIndex >= 0 && prev) {
+            const updated = await makCode.update(prev.id, payload);
+            setMakCodes((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((m) => m.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await makCode.create(payload);
+            setMakCodes((list) => [created, ...list]);
+          }
+        } catch {
+          return;
+        }
+        resetModal();
+      })();
+      return;
     } else if (active === "satker") {
-      const section = sectionsById.satker;
       const prev = editIndex >= 0 ? satkers[editIndex] : undefined;
-      const next = section.build({ formData, prev, items: satkers });
-      const arr = [...satkers];
-      if (editIndex >= 0) arr[editIndex] = next;
-      else arr.unshift(next);
-      setSatkers(arr);
+      void (async () => {
+        try {
+          const payload = {
+            satkerUnitPengendaliKode:
+              formData.satkerUnitPengendaliKode?.trim() || "",
+            satkerUnitKode: formData.satkerUnitKode?.trim() || "",
+            satkerUnitNama: formData.satkerUnitNama?.trim() || "",
+            satkerUnitDirektorat: formData.satkerUnitDirektorat?.trim() || "",
+          };
+          if (editIndex >= 0 && prev) {
+            const updated = await satkerUnitCode.update(prev.id, payload);
+            setSatkers((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((s) => s.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await satkerUnitCode.create(payload);
+            setSatkers((list) => [created, ...list]);
+          }
+        } catch {
+          return;
+        }
+        resetModal();
+      })();
+      return;
     } else if (active === "ppk") {
-      const section = sectionsById.ppk;
       const prev = editIndex >= 0 ? ppkCodes[editIndex] : undefined;
-      const next = section.build({ formData, prev, items: ppkCodes });
-      const arr = [...ppkCodes];
-      if (editIndex >= 0) arr[editIndex] = next;
-      else arr.unshift(next);
-      setPpkCodes(arr);
+      void (async () => {
+        try {
+          const payload = {
+            ppkKode: formData.ppkKode?.trim() || "",
+            ppkNomenklatur: formData.ppkNomenklatur?.trim() || "",
+          };
+          if (editIndex >= 0 && prev) {
+            const updated = await ulpPpkCode.update(prev.id, payload);
+            setPpkCodes((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((p) => p.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await ulpPpkCode.create(payload);
+            setPpkCodes((list) => [created, ...list]);
+          }
+        } catch {
+          return;
+        }
+        resetModal();
+      })();
+      return;
     } else if (active === "persiapan") {
-      const section = sectionsById.persiapan;
       const prev = editIndex >= 0 ? preps[editIndex] : undefined;
-      const next = section.build({ formData, prev, items: preps });
-      const arr = [...preps];
-      if (editIndex >= 0) arr[editIndex] = next;
-      else arr.unshift(next);
-      setPreps(arr);
+      void (async () => {
+        try {
+          const trimUndef = (s: string | undefined) => {
+            const t = s?.trim();
+            return t ? t : undefined;
+          };
+          const decStr = (s: string | undefined) => {
+            const t = s?.trim();
+            return t !== undefined && t !== "" ? t : "0.00";
+          };
+          const optId = (s: string | undefined): number | null => {
+            const t = s?.trim();
+            if (!t) return null;
+            const n = Number(t);
+            return Number.isFinite(n) ? n : null;
+          };
+          const payload: CreateStagePreparationRequest = {
+            dppDiterimaTgl: trimUndef(formData.dppDiterimaTgl),
+            agendaNo: trimUndef(formData.agendaNo),
+            ulpSatkerUnitPengendaliId: Number(
+              formData.ulpSatkerUnitPengendaliId || 0,
+            ),
+            ulpSatkerUnitEnduserId: Number(
+              formData.ulpSatkerUnitEnduserId || 0,
+            ),
+            suratEnduserNo: trimUndef(formData.suratEnduserNo),
+            suratEnduserTgl: trimUndef(formData.suratEnduserTgl),
+            suratEnduserHal: trimUndef(formData.suratEnduserHal),
+            ulpPpkCodeId: Number(formData.ulpPpkCodeId || 0),
+            suratPpkNo: trimUndef(formData.suratPpkNo),
+            dppTgl: trimUndef(formData.dppTgl),
+            suratPpkHal: trimUndef(formData.suratPpkHal),
+            paketPbjNama: trimUndef(formData.paketPbjNama),
+            anggaranPaguNonaktif: decStr(formData.anggaranPaguNonaktif),
+            anggaranPaguAktif: decStr(formData.anggaranPaguAktif),
+            ulpMakCodeId: optId(formData.ulpMakCodeId),
+            kelompokBelanjaModal: decStr(formData.kelompokBelanjaModal),
+            kelompokBelanjaOperasional: decStr(
+              formData.kelompokBelanjaOperasional,
+            ),
+            keteranganTambahan:
+              trimUndef(formData.keteranganTambahan) ?? "Sedang Berproses",
+          };
+          if (editIndex >= 0 && prev) {
+            const updated = await stagePreparation.update(prev.id, payload);
+            setPreps((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((p) => p.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await stagePreparation.create(payload);
+            setPreps((list) => [created, ...list]);
+          }
+        } catch {
+          return;
+        }
+        resetModal();
+      })();
+      return;
     } else if (active === "proses") {
-      const section = sectionsById.proses;
       const prev = editIndex >= 0 ? procs[editIndex] : undefined;
-      const next = section.build({ formData, prev, items: procs });
-      const arr = [...procs];
-      if (editIndex >= 0) arr[editIndex] = next;
-      else arr.unshift(next);
-      setProcs(arr);
+      void (async () => {
+        try {
+          const payload = formDataToStageProcessPayload(formData);
+          if (editIndex >= 0 && prev) {
+            const updated = await stageProcess.update(prev.id, payload);
+            setProcs((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((p) => p.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await stageProcess.create(payload);
+            setProcs((list) => [created, ...list]);
+          }
+        } catch {
+          return;
+        }
+        resetModal();
+      })();
+      return;
+    } else if (active === "users") {
+      const prev = editIndex >= 0 ? usersList[editIndex] : undefined;
+      void (async () => {
+        try {
+          if (editIndex >= 0 && prev) {
+            const updated = await user.update(prev.id, {
+              fullName: formData.fullName?.trim() || "",
+              email: formData.email?.trim() || "",
+            });
+            setUsersList((list) => {
+              const arr = [...list];
+              const idx = arr.findIndex((u) => u.id === prev.id);
+              if (idx >= 0) arr[idx] = updated;
+              return arr;
+            });
+          } else {
+            const created = await user.create({
+              fullName: formData.fullName?.trim() || "",
+              email: formData.email?.trim() || "",
+              password: formData.password || "",
+            });
+            setUsersList((list) => [created, ...list]);
+          }
+        } catch {
+          // API error — biarkan modal tetap terbuka agar user bisa perbaiki
+          return;
+        }
+        resetModal();
+      })();
+      return;
     }
     resetModal();
   }
 
   function removeRow(i: number) {
     if (active === "perusahaan") {
-      const arr = [...companies];
-      arr.splice(i, 1);
-      setCompanies(arr);
+      const row = companies[i];
+      if (!row) return;
+      void (async () => {
+        try {
+          await ulpPerusahaanCode.delete(row.id);
+          setCompanies((list) => list.filter((c) => c.id !== row.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
     } else if (active === "mak") {
-      const arr = [...makCodes];
-      arr.splice(i, 1);
-      setMakCodes(arr);
+      const row = makCodes[i];
+      if (!row) return;
+      void (async () => {
+        try {
+          await makCode.delete(row.id);
+          setMakCodes((list) => list.filter((m) => m.id !== row.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
     } else if (active === "satker") {
-      const arr = [...satkers];
-      arr.splice(i, 1);
-      setSatkers(arr);
+      const row = satkers[i];
+      if (!row) return;
+      void (async () => {
+        try {
+          await satkerUnitCode.delete(row.id);
+          setSatkers((list) => list.filter((s) => s.id !== row.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
     } else if (active === "ppk") {
-      const arr = [...ppkCodes];
-      arr.splice(i, 1);
-      setPpkCodes(arr);
+      const row = ppkCodes[i];
+      if (!row) return;
+      void (async () => {
+        try {
+          await ulpPpkCode.delete(row.id);
+          setPpkCodes((list) => list.filter((p) => p.id !== row.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
     } else if (active === "persiapan") {
-      const arr = [...preps];
-      arr.splice(i, 1);
-      setPreps(arr);
+      const row = preps[i];
+      if (!row) return;
+      void (async () => {
+        try {
+          await stagePreparation.delete(row.id);
+          setPreps((list) => list.filter((p) => p.id !== row.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
     } else if (active === "proses") {
-      const arr = [...procs];
-      arr.splice(i, 1);
-      setProcs(arr);
+      const row = procs[i];
+      if (!row) return;
+      void (async () => {
+        try {
+          await stageProcess.delete(row.id);
+          setProcs((list) => list.filter((p) => p.id !== row.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
+    } else if (active === "users") {
+      const u = usersList[i];
+      if (!u) return;
+      void (async () => {
+        try {
+          await user.delete(u.id);
+          setUsersList((list) => list.filter((x) => x.id !== u.id));
+        } catch {
+          // gagal hapus
+        }
+      })();
     }
   }
 
@@ -217,10 +576,15 @@ export default function MasterDataPage() {
       const defs = section.filters;
       return typeof defs === "function" ? defs(preps) : defs || [];
     }
+    if (active === "users") {
+      const section = sectionsById.users;
+      const defs = section.filters;
+      return typeof defs === "function" ? defs(usersList) : defs || [];
+    }
     const section = sectionsById.proses;
     const defs = section.filters;
     return typeof defs === "function" ? defs(procs) : defs || [];
-  }, [active, companies, makCodes, satkers, ppkCodes, preps, procs]);
+  }, [active, companies, makCodes, satkers, ppkCodes, preps, procs, usersList]);
 
   function filteredWithIndex<T>(
     arr: T[],
@@ -288,7 +652,7 @@ export default function MasterDataPage() {
     };
   }
 
-  if (!isAuthed) {
+  if (!authReady || !isAuthed) {
     return <div className="min-h-screen bg-[#F7FBFF]" />;
   }
 
@@ -341,23 +705,11 @@ export default function MasterDataPage() {
                 {menu.map((m) => {
                   const Icon = m.icon;
                   const isActive = active === m.id;
-                  const count =
-                    m.id === "perusahaan"
-                      ? companies.length
-                      : m.id === "mak"
-                      ? makCodes.length
-                      : m.id === "satker"
-                      ? satkers.length
-                      : m.id === "ppk"
-                      ? ppkCodes.length
-                      : m.id === "persiapan"
-                      ? preps.length
-                      : procs.length;
                   return (
                     <button
                       key={m.id}
                       className={[
-                        "group relative flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition-colors",
+                        "group relative flex w-full items-center rounded-xl border px-3 py-2 text-left text-sm transition-colors",
                         isActive
                           ? "border-[#C9E3FF] bg-[#E6F3FF] text-[#0066CC]"
                           : "border-transparent bg-white text-[#0B1E33] hover:border-[#E1ECF7] hover:bg-[#F7FBFF]",
@@ -376,14 +728,6 @@ export default function MasterDataPage() {
                           <Icon className="h-4 w-4" />
                         </span>
                         <span className="font-medium">{m.label}</span>
-                      </span>
-                      <span
-                        className={[
-                          "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                          isActive ? "bg-white text-[#0066CC]" : "bg-[#F0F4FA] text-[#5B6B7F]",
-                        ].join(" ")}
-                      >
-                        {count}
                       </span>
                       {isActive ? (
                         <span className="absolute left-0 top-2 h-[calc(100%-16px)] w-1 rounded-r-full bg-[#0066CC]" />
@@ -404,7 +748,21 @@ export default function MasterDataPage() {
                 <div className="min-w-0">
                   <CardTitle className="text-base">{sectionsById[active].label}</CardTitle>
                   <CardDescription>
-                    CRUD frontend menggunakan data. Integrasi API bisa ditambahkan kemudian.
+                    {active === "users"
+                      ? "Data pengguna diambil dari API. Tambah, ubah, dan hapus akan memanggil endpoint /users."
+                      : active === "perusahaan"
+                        ? "Data Perusahaan diambil dari API. Tambah, ubah, dan hapus memanggil endpoint /admin/ulp-perusahaan-codes."
+                        : active === "ppk"
+                          ? "Data PPK diambil dari API. Tambah, ubah, dan hapus memanggil endpoint /admin/ulp-ppk-codes."
+                          : active === "mak"
+                            ? "Data Kode MAK diambil dari API. Tambah, ubah, dan hapus memanggil endpoint /ulp-mak-codes."
+                            : active === "satker"
+                              ? "Data Satker Unit diambil dari API. Tambah, ubah, dan hapus memanggil endpoint /ulp-satker-unit-codes."
+                              : active === "persiapan"
+                                ? "Data Tahap Persiapan diambil dari API. Tambah, ubah, dan hapus memanggil endpoint /ulp-stage-preperations."
+                                : active === "proses"
+                                  ? "Data Proses Pemilihan diambil dari API. Tambah, ubah, dan hapus memanggil endpoint /ulp-stage-processes."
+                                  : "CRUD frontend menggunakan data. Integrasi API bisa ditambahkan kemudian."}
                   </CardDescription>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
@@ -556,6 +914,25 @@ export default function MasterDataPage() {
               onDelete={removeRow}
             />
           )})()}
+
+          {active === "users" && (() => {
+            const filtered = filteredWithIndex(usersList, sectionsById.users.pick, activeFilterFields);
+            return (
+            <DataTable
+              columns={sectionsById.users.columns}
+              rows={filtered.map(({ item, index }) => ({
+                index,
+                cells: sectionsById.users.toRow(item),
+              }))}
+              total={filtered.length}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              onEdit={openEdit}
+              onDelete={removeRow}
+            />
+          )})()}
             </CardContent>
           </Card>
         </section>
@@ -574,14 +951,38 @@ export default function MasterDataPage() {
               ? sectionsById.ppk.initial(editIndex >= 0 ? ppkCodes[editIndex] : undefined)
               : active === "persiapan"
               ? sectionsById.persiapan.initial(editIndex >= 0 ? preps[editIndex] : undefined)
+              : active === "users"
+              ? sectionsById.users.initial(editIndex >= 0 ? usersList[editIndex] : undefined)
               : sectionsById.proses.initial(editIndex >= 0 ? procs[editIndex] : undefined);
 
-          const base = sectionsById[active].fields;
+          const rawBase =
+            active === "users" ? userModalFields(editIndex) : sectionsById[active].fields;
+          const base =
+            editIndex < 0
+              ? rawBase.filter((f) => {
+                  if (active === "perusahaan" || active === "ppk")
+                    return f.name !== "id";
+                  if (active === "persiapan" || active === "proses")
+                    return !["id", "createdAt", "updatedAt", "deletedAt"].includes(
+                      f.name,
+                    );
+                  return true;
+                })
+              : rawBase;
           const existing = new Set(base.map((f) => f.name));
-          const extra = Object.keys(initial)
-            .filter((k) => !existing.has(k))
-            .sort((a, b) => a.localeCompare(b))
-            .map((k) => autoField(k, initial[k] || ""));
+          const extra =
+            active === "users" ||
+            active === "perusahaan" ||
+            active === "ppk" ||
+            active === "mak" ||
+            active === "satker" ||
+            active === "persiapan" ||
+            active === "proses"
+              ? []
+              : Object.keys(initial)
+                  .filter((k) => !existing.has(k))
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((k) => autoField(k, initial[k] || ""));
 
           return (
             <EditModal
@@ -670,6 +1071,7 @@ function DataTable({
   onPageSizeChange,
   onEdit,
   onDelete,
+  showRowActions = true,
 }: {
   columns: string[];
   rows: { index: number; cells: string[] }[];
@@ -680,6 +1082,8 @@ function DataTable({
   onPageSizeChange: (s: number) => void;
   onEdit: (i: number) => void;
   onDelete: (i: number) => void;
+  /** Jika false, kolom menu aksi baris disembunyikan (mis. API tanpa update/delete). */
+  showRowActions?: boolean;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const cur = Math.min(page, pages);
@@ -694,7 +1098,9 @@ function DataTable({
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 bg-white/90 text-[11px] font-medium uppercase tracking-wide text-[#5B6B7F] backdrop-blur">
             <tr className="border-b border-[#E1ECF7]">
-              <th className="w-12 px-4 py-3 text-left"> </th>
+              {showRowActions ? (
+                <th className="w-12 px-4 py-3 text-left"> </th>
+              ) : null}
               {columns.map((c) => (
                 <th key={c} className="px-4 py-3 text-left">
                   {c}
@@ -705,7 +1111,10 @@ function DataTable({
           <tbody className="divide-y divide-[#F0F4FA]">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 1} className="px-4 py-14">
+                <td
+                  colSpan={columns.length + (showRowActions ? 1 : 0)}
+                  className="px-4 py-14"
+                >
                   <div className="mx-auto flex max-w-md flex-col items-center gap-2 text-center">
                     <div className="grid h-12 w-12 place-items-center rounded-2xl border border-[#E1ECF7] bg-[#F7FBFF] text-[#0066CC]">
                       <Database className="h-5 w-5" />
@@ -720,31 +1129,43 @@ function DataTable({
             ) : (
               view.map((r) => (
                 <tr key={r.index} className="group hover:bg-[#F7FBFF]">
-                  <td className="px-2 py-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#5B6B7F] hover:text-[#0066CC]"
+                  {showRowActions ? (
+                    <td className="px-2 py-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#5B6B7F] hover:text-[#0066CC]"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="start"
+                          side="bottom"
+                          sideOffset={6}
+                          className="z-[200] w-48 rounded-xl border border-[#C9E3FF] bg-white p-1.5 text-[#0B1E33] shadow-xl"
                         >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuItem className="cursor-pointer" onClick={() => onEdit(r.index)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="cursor-pointer text-red-600 focus:text-red-600"
-                          onClick={() => onDelete(r.index)}
-                        >
-                          Hapus
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
+                          <DropdownMenuItem
+                            className="cursor-pointer gap-2 rounded-lg py-2 text-[#0B1E33] focus:bg-[#E6F3FF] focus:text-[#0066CC]"
+                            onClick={() => onEdit(r.index)}
+                          >
+                            <Pencil className="h-4 w-4 shrink-0 text-[#0066CC]" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-[#E1ECF7]" />
+                          <DropdownMenuItem
+                            className="cursor-pointer gap-2 rounded-lg py-2 text-red-600 focus:bg-red-50 focus:text-red-700"
+                            onClick={() => onDelete(r.index)}
+                          >
+                            <Trash2 className="h-4 w-4 shrink-0" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  ) : null}
                   {r.cells.map((cell, j) => {
                     const value = cell?.trim() ? cell : "—";
                     return (
@@ -828,7 +1249,6 @@ function EditModal({
     >
       <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-3xl items-center">
         <Card className="w-full overflow-hidden shadow-xl">
-          <div className="h-1.5 bg-gradient-to-r from-[#0066CC] via-sky-400 to-emerald-400" />
           <CardHeader className="gap-1">
             <CardTitle className="text-base">{title}</CardTitle>
             <CardDescription>Lengkapi field yang diperlukan lalu simpan perubahan.</CardDescription>
@@ -866,25 +1286,64 @@ function FormGrid({
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {fields.map((f) => (
-        <div key={f.name} className="space-y-1.5">
+        <div
+          key={f.name}
+          className={cn("space-y-1.5", f.fullWidth && "md:col-span-2")}
+        >
           <div className="text-xs font-medium text-[#5B6B7F]">{f.label}</div>
           {f.select ? (
-            <select
-              value={values[f.name] || ""}
-              onChange={(e) => onChange(f.name, e.target.value)}
-              disabled={Boolean(f.readonly)}
-              className={[
-                "h-10 w-full rounded-xl border border-[#C9E3FF] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#0066CC]",
-                f.readonly ? "cursor-not-allowed bg-[#F7FBFF] text-[#5B6B7F]" : "",
-              ].join(" ")}
-            >
-              <option value="" />
-              {f.select.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            (() => {
+              const opts = f.select;
+              const raw = values[f.name] ?? "";
+              const allowEmpty = f.allowEmpty !== false;
+              const optionValues = new Set(opts.map((o) => o.value));
+              const selectedValue = allowEmpty
+                ? raw === ""
+                  ? "__empty__"
+                  : raw
+                : raw !== "" && optionValues.has(raw)
+                  ? raw
+                  : (opts[0]?.value ?? "");
+              return (
+                <Select
+                  value={selectedValue}
+                  onValueChange={(v) => {
+                    if (allowEmpty) {
+                      onChange(f.name, v === "__empty__" ? "" : v);
+                    } else {
+                      onChange(f.name, v);
+                    }
+                  }}
+                  disabled={Boolean(f.readonly)}
+                >
+                  <SelectTrigger
+                    className={cn(
+                      "h-10 w-full min-w-0 rounded-xl border border-[#C9E3FF] bg-white px-3 text-sm shadow-none focus-visible:border-[#C9E3FF] focus-visible:ring-2 focus-visible:ring-[#0066CC] data-[size=default]:h-10 [&_svg]:text-[#5B6B7F]",
+                      f.readonly
+                        ? "cursor-not-allowed bg-[#F7FBFF] text-[#5B6B7F]"
+                        : "",
+                    )}
+                  >
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowEmpty ? (
+                      <SelectItem
+                        value="__empty__"
+                        className="text-[#5B6B7F]"
+                      >
+                        —
+                      </SelectItem>
+                    ) : null}
+                    {opts.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              );
+            })()
           ) : f.textarea ? (
             <textarea
               value={values[f.name] || ""}
@@ -899,7 +1358,15 @@ function FormGrid({
             <Input
               value={values[f.name] || ""}
               onChange={(e) => onChange(f.name, e.target.value)}
-              type={f.type || "text"}
+              type={
+                f.type === "password"
+                  ? "password"
+                  : f.type === "date"
+                    ? "date"
+                    : f.type === "number"
+                      ? "number"
+                      : "text"
+              }
               disabled={Boolean(f.readonly)}
               className={[
                 "h-10 border-[#C9E3FF] bg-white text-sm focus-visible:ring-[#0066CC]",

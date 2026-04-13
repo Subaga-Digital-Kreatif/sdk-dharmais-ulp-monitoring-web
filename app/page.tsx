@@ -20,7 +20,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { OverviewView } from "./dashboard/overview-view";
@@ -28,6 +27,8 @@ import { PaketView } from "./dashboard/paket-view";
 import { AnggaranView } from "./dashboard/anggaran-view";
 import { ProgresView } from "./dashboard/progres-view";
 import { loadUlpData, UlpData } from "./dashboard/data-loader";
+import { AUTH_USER_STORAGE_KEY } from "@/models/auth";
+import { apiToken } from "@/models/api";
 
 type DashboardView = "overview" | "persiapan" | "proses" | "laporan";
 
@@ -59,21 +60,26 @@ export default function Home() {
   });
   const isDesktop = useIsDesktop();
 
-  const isAuthed = useMemo(() => {
-    if (typeof window === "undefined") return false;
+  /** Jangan baca storage di render: SSR tidak punya window → placeholder; klien bisa langsung authed → mismatch. */
+  const [authReady, setAuthReady] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
     try {
-      return (
+      const ok =
         localStorage.getItem("ulp_auth_demo") === "1" ||
-        sessionStorage.getItem("ulp_auth_demo") === "1"
-      );
+        sessionStorage.getItem("ulp_auth_demo") === "1";
+      setIsAuthed(ok);
     } catch {
-      return false;
+      setIsAuthed(false);
     }
+    setAuthReady(true);
   }, []);
 
   useEffect(() => {
-    if (!isAuthed) router.replace("/login");
-  }, [isAuthed, router]);
+    if (!authReady || isAuthed) return;
+    router.replace("/login");
+  }, [authReady, isAuthed, router]);
 
   useAutoRotate({
     enabled: autoRotate && isDesktop,
@@ -82,7 +88,7 @@ export default function Home() {
   });
 
   useEffect(() => {
-    if (!isAuthed) return;
+    if (!authReady || !isAuthed) return;
     const timeout = setTimeout(() => setIsLoading(false), 800);
     loadUlpData().then((data) => {
       setUlpData(data);
@@ -123,7 +129,7 @@ export default function Home() {
       }
     });
     return () => clearTimeout(timeout);
-  }, [isAuthed]);
+  }, [authReady, isAuthed]);
 
   useEffect(() => {
     if (
@@ -141,8 +147,11 @@ export default function Home() {
 
   const handleLogout = () => {
     try {
+      apiToken.delete();
       localStorage.removeItem("ulp_auth_demo");
       sessionStorage.removeItem("ulp_auth_demo");
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      sessionStorage.removeItem(AUTH_USER_STORAGE_KEY);
     } catch {
     }
     router.push("/login");
@@ -168,7 +177,7 @@ export default function Home() {
     });
   }, [ulpData, period]);
 
-  if (!isAuthed) {
+  if (!authReady || !isAuthed) {
     return <div className="min-h-screen bg-[#F7FBFF]" />;
   }
 
@@ -349,29 +358,34 @@ export default function Home() {
                 </div>
               </div>
               <div className="flex items-center gap-2 rounded-full border border-[#C9E3FF] bg-white px-3 py-1.5 text-xs">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={autoRotate}
-                    onCheckedChange={(checked) =>
-                      setAutoRotate(Boolean(checked))
-                    }
-                    aria-label="Auto rotate view"
-                  />
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-medium text-[#0B1E33]">
-                      Auto rotate
-                    </span>
-                    <span className="text-[11px] text-[#5B6B7F]">
-                      Ganti tampilan otomatis
-                    </span>
-                  </div>
-                </div>
-                <div className="ml-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#E6F3FF] text-[#0066CC]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-full border-[#C9E3FF] bg-[#E6F3FF] text-[#0066CC] hover:bg-[#d9ecfc]"
+                  aria-label={
+                    autoRotate
+                      ? "Jeda putar otomatis"
+                      : "Mulai putar otomatis"
+                  }
+                  aria-pressed={autoRotate}
+                  onClick={() => setAutoRotate((v) => !v)}
+                >
                   {autoRotate ? (
-                    <Play className="h-3.5 w-3.5" />
+                    <Pause className="h-4 w-4" />
                   ) : (
-                    <Pause className="h-3.5 w-3.5" />
+                    <Play className="h-4 w-4 fill-current" />
                   )}
+                </Button>
+                <div className="flex min-w-0 flex-col leading-tight">
+                  <span className="font-medium text-[#0B1E33]">
+                    Putar otomatis
+                  </span>
+                  <span className="text-[11px] text-[#5B6B7F]">
+                    {autoRotate
+                      ? "Ganti tampilan berjalan"
+                      : "Tekan play untuk mulai"}
+                  </span>
                 </div>
               </div>
             </div>

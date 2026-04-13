@@ -1,5 +1,5 @@
 import { ListChecks } from "lucide-react";
-import { toFlat } from "./utils";
+
 import type { PpkCode, SectionDef } from "./section-types";
 
 export const ppkSection: SectionDef<PpkCode, "ppk"> = {
@@ -7,23 +7,36 @@ export const ppkSection: SectionDef<PpkCode, "ppk"> = {
   label: "PPK",
   icon: ListChecks,
   columns: ["ID", "Kode", "Nomenklatur"],
-  pick: (x) => x.ppk_nomenklatur,
-  toRow: (x) => [String(x.id), x.ppk_kode, x.ppk_nomenklatur],
+  pick: (x) => [x.ppkKode, x.ppkNomenklatur].filter(Boolean).join(" "),
+  toRow: (x) => [String(x.id), x.ppkKode, x.ppkNomenklatur],
   filters: [
-    { name: "ppk_kode", label: "Kode" },
-    { name: "ppk_nomenklatur", label: "Nomenklatur" },
+    { name: "ppkKode", label: "Kode" },
+    { name: "ppkNomenklatur", label: "Nomenklatur" },
   ],
   fields: [
-    { name: "ppk_kode", label: "Kode" },
-    { name: "ppk_nomenklatur", label: "Nomenklatur" },
+    { name: "id", label: "ID", type: "number", readonly: true },
+    { name: "ppkKode", label: "Kode" },
+    { name: "ppkNomenklatur", label: "Nomenklatur" },
   ],
-  initial: (item) => toFlat(item),
+  initial: (item) => {
+    const empty: Record<string, string> = {
+      id: "",
+      ppkKode: "",
+      ppkNomenklatur: "",
+    };
+    if (!item) return empty;
+    return {
+      id: String(item.id),
+      ppkKode: item.ppkKode ?? "",
+      ppkNomenklatur: item.ppkNomenklatur ?? "",
+    };
+  },
   build: ({ formData, prev, items }) => ({
-    id: prev?.id ?? Math.max(0, ...items.map((m) => m.id)) + 1,
-    ppk_kode: formData.ppk_kode || "",
-    ppk_nomenklatur: formData.ppk_nomenklatur || "",
-    created_at: prev?.created_at ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    deleted_at: null,
+    id: prev?.id ?? Math.max(0, ...items.map((m) => m.id), 0) + 1,
+    ppkKode: formData.ppkKode || "",
+    ppkNomenklatur: formData.ppkNomenklatur || "",
+    createdAt: prev?.createdAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deletedAt: null,
   }),
 };

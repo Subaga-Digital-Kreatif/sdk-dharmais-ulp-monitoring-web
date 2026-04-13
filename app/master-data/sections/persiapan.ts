@@ -1,24 +1,42 @@
 import { FileText } from "lucide-react";
-import { toFlat } from "./utils";
+
 import type { SectionDef, StagePreparation } from "./section-types";
+
+function fmtMoney(v: string | null | undefined): string {
+  if (v == null || v === "") return "—";
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
+function dateInput(v: string | null | undefined): string {
+  if (!v) return "";
+  return v.slice(0, 10);
+}
 
 export const persiapanSection: SectionDef<StagePreparation, "persiapan"> = {
   id: "persiapan",
   label: "Tahap Persiapan",
   icon: FileText,
   columns: ["ID", "No Agenda", "Tanggal DPP", "Paket", "Pagu Aktif", "Status"],
-  pick: (x) => x.paket_pbj_nama,
+  pick: (x) =>
+    [x.paketPbjNama, x.agendaNo, x.suratEnduserNo, x.suratPpkNo]
+      .filter((s): s is string => Boolean(s && String(s).trim()))
+      .join(" "),
   toRow: (x) => [
     String(x.id),
-    x.agenda_no,
-    x.dpp_tgl,
-    x.paket_pbj_nama,
-    new Intl.NumberFormat("id-ID").format(x.anggaran_pagu_aktif),
-    x.keterangan_tambahan,
+    x.agendaNo ?? "",
+    dateInput(x.dppTgl),
+    x.paketPbjNama ?? "",
+    fmtMoney(x.anggaranPaguAktif),
+    x.keteranganTambahan ?? "",
   ],
   filters: [
     {
-      name: "keterangan_tambahan",
+      name: "keteranganTambahan",
       label: "Status",
       select: [
         { value: "Kaji Ulang PPK", label: "Kaji Ulang PPK" },
@@ -26,69 +44,141 @@ export const persiapanSection: SectionDef<StagePreparation, "persiapan"> = {
         { value: "Selesai Dilaporkan", label: "Selesai Dilaporkan" },
       ],
     },
-    { name: "dpp_tgl", label: "Tanggal DPP", type: "date" },
-    { name: "agenda_no", label: "No Agenda" },
-    { name: "ulp_ppk_code_id", label: "PPK (ID)", type: "number" },
-    { name: "ulp_mak_code_id", label: "MAK (ID)", type: "number" },
-    { name: "ulp_satker_unit_pengendali_id", label: "Satker Pengendali (ID)", type: "number" },
+    { name: "dppTgl", label: "Tanggal DPP", type: "date" },
+    { name: "agendaNo", label: "No Agenda" },
+    { name: "ulpPpkCodeId", label: "PPK (ID)", type: "number" },
+    { name: "ulpMakCodeId", label: "MAK (ID)", type: "number" },
+    {
+      name: "ulpSatkerUnitPengendaliId",
+      label: "Satker Pengendali (ID)",
+      type: "number",
+    },
   ],
   fields: [
     { name: "id", label: "ID", type: "number", readonly: true },
-    { name: "dpp_diterima_tgl", label: "Tanggal Diterima DPP", type: "date" },
-    { name: "agenda_no", label: "No Agenda" },
-    { name: "ulp_satker_unit_pengendali_id", label: "Satker Pengendali (ID)", type: "number" },
-    { name: "ulp_satker_unit_enduser_id", label: "Satker End User (ID)", type: "number" },
-    { name: "surat_enduser_no", label: "No Surat End User" },
-    { name: "surat_enduser_tgl", label: "Tanggal Surat End User", type: "date" },
-    { name: "surat_enduser_hal", label: "Hal Surat End User", textarea: true },
-    { name: "ulp_ppk_code_id", label: "PPK (ID)", type: "number" },
-    { name: "surat_ppk_no", label: "No Surat PPK" },
-    { name: "dpp_tgl", label: "Tanggal DPP", type: "date" },
-    { name: "surat_ppk_hal", label: "Hal Surat PPK", textarea: true },
-    { name: "paket_pbj_nama", label: "Nama Paket PBJ", textarea: true },
-    { name: "anggaran_pagu_nonaktif", label: "Pagu Non Aktif", type: "number" },
-    { name: "anggaran_pagu_aktif", label: "Pagu Aktif", type: "number" },
-    { name: "ulp_mak_code_id", label: "MAK (ID)", type: "number" },
-    { name: "kelompok_belanja_modal", label: "Kelompok Belanja Modal", type: "number" },
-    { name: "kelompok_belanja_operasional", label: "Kelompok Belanja Operasional", type: "number" },
+    { name: "dppDiterimaTgl", label: "Tanggal Diterima DPP", type: "date" },
+    { name: "agendaNo", label: "No Agenda" },
     {
-      name: "keterangan_tambahan",
+      name: "ulpSatkerUnitPengendaliId",
+      label: "Satker Pengendali (ID)",
+      type: "number",
+    },
+    {
+      name: "ulpSatkerUnitEnduserId",
+      label: "Satker End User (ID)",
+      type: "number",
+    },
+    { name: "suratEnduserNo", label: "No Surat End User" },
+    { name: "suratEnduserTgl", label: "Tanggal Surat End User", type: "date" },
+    { name: "suratEnduserHal", label: "Hal Surat End User", textarea: true },
+    { name: "ulpPpkCodeId", label: "PPK (ID)", type: "number" },
+    { name: "suratPpkNo", label: "No Surat PPK" },
+    { name: "dppTgl", label: "Tanggal DPP", type: "date" },
+    { name: "suratPpkHal", label: "Hal Surat PPK", textarea: true },
+    { name: "paketPbjNama", label: "Nama Paket PBJ", textarea: true },
+    { name: "anggaranPaguNonaktif", label: "Pagu Non Aktif", type: "number" },
+    { name: "anggaranPaguAktif", label: "Pagu Aktif", type: "number" },
+    { name: "ulpMakCodeId", label: "MAK (ID)", type: "number" },
+    {
+      name: "kelompokBelanjaModal",
+      label: "Kelompok Belanja Modal",
+      type: "number",
+    },
+    {
+      name: "kelompokBelanjaOperasional",
+      label: "Kelompok Belanja Operasional",
+      type: "number",
+    },
+    {
+      name: "keteranganTambahan",
       label: "Status",
       select: [
         { value: "Kaji Ulang PPK", label: "Kaji Ulang PPK" },
         { value: "Sedang Berproses", label: "Sedang Berproses" },
         { value: "Selesai Dilaporkan", label: "Selesai Dilaporkan" },
       ],
+      allowEmpty: false,
     },
-    { name: "created_at", label: "Created At", readonly: true },
-    { name: "updated_at", label: "Updated At", readonly: true },
-    { name: "deleted_at", label: "Deleted At", readonly: true },
+    { name: "createdAt", label: "Created At", readonly: true },
+    { name: "updatedAt", label: "Updated At", readonly: true },
+    { name: "deletedAt", label: "Deleted At", readonly: true },
   ],
-  initial: (item) => toFlat(item),
+  initial: (item) => {
+    const empty: Record<string, string> = {
+      id: "",
+      dppDiterimaTgl: "",
+      agendaNo: "",
+      ulpSatkerUnitPengendaliId: "",
+      ulpSatkerUnitEnduserId: "",
+      suratEnduserNo: "",
+      suratEnduserTgl: "",
+      suratEnduserHal: "",
+      ulpPpkCodeId: "",
+      suratPpkNo: "",
+      dppTgl: "",
+      suratPpkHal: "",
+      paketPbjNama: "",
+      anggaranPaguNonaktif: "",
+      anggaranPaguAktif: "",
+      ulpMakCodeId: "",
+      kelompokBelanjaModal: "",
+      kelompokBelanjaOperasional: "",
+      keteranganTambahan: "Sedang Berproses",
+      createdAt: "",
+      updatedAt: "",
+      deletedAt: "",
+    };
+    if (!item) return empty;
+    return {
+      id: String(item.id),
+      dppDiterimaTgl: dateInput(item.dppDiterimaTgl),
+      agendaNo: item.agendaNo ?? "",
+      ulpSatkerUnitPengendaliId: String(item.ulpSatkerUnitPengendaliId ?? ""),
+      ulpSatkerUnitEnduserId: String(item.ulpSatkerUnitEnduserId ?? ""),
+      suratEnduserNo: item.suratEnduserNo ?? "",
+      suratEnduserTgl: dateInput(item.suratEnduserTgl),
+      suratEnduserHal: item.suratEnduserHal ?? "",
+      ulpPpkCodeId: String(item.ulpPpkCodeId ?? ""),
+      suratPpkNo: item.suratPpkNo ?? "",
+      dppTgl: dateInput(item.dppTgl),
+      suratPpkHal: item.suratPpkHal ?? "",
+      paketPbjNama: item.paketPbjNama ?? "",
+      anggaranPaguNonaktif: item.anggaranPaguNonaktif ?? "",
+      anggaranPaguAktif: item.anggaranPaguAktif ?? "",
+      ulpMakCodeId:
+        item.ulpMakCodeId != null ? String(item.ulpMakCodeId) : "",
+      kelompokBelanjaModal: item.kelompokBelanjaModal ?? "",
+      kelompokBelanjaOperasional: item.kelompokBelanjaOperasional ?? "",
+      keteranganTambahan: item.keteranganTambahan ?? "Sedang Berproses",
+      createdAt: item.createdAt ?? "",
+      updatedAt: item.updatedAt ?? "",
+      deletedAt: item.deletedAt ?? "",
+    };
+  },
   build: ({ formData, prev, items }) => ({
     id: prev?.id ?? Math.max(0, ...items.map((m) => m.id)) + 1,
-    dpp_diterima_tgl: formData.dpp_diterima_tgl || "",
-    agenda_no: formData.agenda_no || "",
-    ulp_satker_unit_pengendali_id: Number(formData.ulp_satker_unit_pengendali_id || 0),
-    ulp_satker_unit_enduser_id: Number(formData.ulp_satker_unit_enduser_id || 0),
-    surat_enduser_no: formData.surat_enduser_no || "",
-    surat_enduser_tgl: formData.surat_enduser_tgl || "",
-    surat_enduser_hal: formData.surat_enduser_hal || "",
-    ulp_ppk_code_id: Number(formData.ulp_ppk_code_id || 0),
-    surat_ppk_no: formData.surat_ppk_no || "",
-    dpp_tgl: formData.dpp_tgl || "",
-    surat_ppk_hal: formData.surat_ppk_hal || "",
-    paket_pbj_nama: formData.paket_pbj_nama || "",
-    anggaran_pagu_nonaktif: Number(formData.anggaran_pagu_nonaktif || 0),
-    anggaran_pagu_aktif: Number(formData.anggaran_pagu_aktif || 0),
-    ulp_mak_code_id: Number(formData.ulp_mak_code_id || 0),
-    kelompok_belanja_modal: Number(formData.kelompok_belanja_modal || 0),
-    kelompok_belanja_operasional: Number(formData.kelompok_belanja_operasional || 0),
-    keterangan_tambahan:
-      (formData.keterangan_tambahan as StagePreparation["keterangan_tambahan"]) ||
-      "Sedang Berproses",
-    created_at: prev?.created_at ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    deleted_at: null,
+    dppDiterimaTgl: formData.dppDiterimaTgl || null,
+    agendaNo: formData.agendaNo || null,
+    ulpSatkerUnitPengendaliId: Number(formData.ulpSatkerUnitPengendaliId || 0),
+    ulpSatkerUnitEnduserId: Number(formData.ulpSatkerUnitEnduserId || 0),
+    suratEnduserNo: formData.suratEnduserNo || null,
+    suratEnduserTgl: formData.suratEnduserTgl || null,
+    suratEnduserHal: formData.suratEnduserHal || null,
+    ulpPpkCodeId: Number(formData.ulpPpkCodeId || 0),
+    suratPpkNo: formData.suratPpkNo || null,
+    dppTgl: formData.dppTgl || null,
+    suratPpkHal: formData.suratPpkHal || null,
+    paketPbjNama: formData.paketPbjNama || null,
+    anggaranPaguNonaktif: formData.anggaranPaguNonaktif || null,
+    anggaranPaguAktif: formData.anggaranPaguAktif || null,
+    ulpMakCodeId: formData.ulpMakCodeId?.trim()
+      ? Number(formData.ulpMakCodeId)
+      : null,
+    kelompokBelanjaModal: formData.kelompokBelanjaModal || null,
+    kelompokBelanjaOperasional: formData.kelompokBelanjaOperasional || null,
+    keteranganTambahan: formData.keteranganTambahan || "Sedang Berproses",
+    createdAt: prev?.createdAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deletedAt: null,
   }),
 };
