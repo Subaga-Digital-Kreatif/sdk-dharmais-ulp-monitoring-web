@@ -1,0 +1,159 @@
+table: ulp_perusahaan_codes // List Perusahaan Penyedia Barang/Jasa
+- perusahaan_nama: string // Nama Penyedia Barang/Jasa
+- perusahaan_pimpinan_nama: string // Nama Pimpinan Perusahaan
+- perusahaan_contact: string // Contact Person
+- perusahaan_alamat: string // Alamat Perusahaan
+- perusahaan_kbli: string // KBLI Penyedia
+- created_at: string // Waktu Dibuat
+- updated_at: string // Waktu Diperbarui
+- deleted_at: string // Waktu Dihapus
+
+table: ulp_mak_codes // List Kodefikasi Mata Anggaran Kegiatan (MAK)
+- id: number // Unique Identifier
+- mak_kategori: enum["Belanja Modal", "Belanja Operasional"] // Kategori Mak
+- mak_kode: string // Kode Mak
+- mak_induk: string // Uraian Mata Anggaran Kegiatan (MAK) Induk
+- mak_rinci: string // Uraian Mata Anggaran Kegiatan (MAK) Rinci
+- mak_no: string // No Mata Anggaran Kegiatan (MAK)
+- mak_keterangan: string // Keterangan
+- created_at: string // Waktu Dibuat
+- updated_at: string // Waktu Diperbarui
+- deleted_at: string // Waktu Dihapus
+
+table: ulp_satker_unit_codes // List Satker
+- id: number // Unique Identifier
+- satker_unit_pengendali_kode: string // Kode Unit Kerja Pengendali
+- satker_unit_kode: string // Kode Unit Kerja
+- satker_unit_nama: string // Unit Kerja
+- satker_unit_direktorat: string // Direktorat
+- created_at: string // Waktu Dibuat
+- updated_at: string // Waktu Diperbarui
+- deleted_at: string // Waktu Dihapus
+
+table: ulp_ppk_codes // List PPK
+- id: number // Unique Identifier
+- ppk_kode: string // Kode PPK
+- ppk_nomenklatur: string // Nomenklatur PPK
+- created_at: string // Waktu Dibuat
+- updated_at: string // Waktu Diperbarui
+- deleted_at: string // Waktu Dihapus
+
+table: ulp_stage_preperations // List Tahap Persiapan Pemilihan
+- id: number // Unique Identifier
+- dpp_diterima_tgl: date // Tanggal Diterima DPP
+- agenda_no: string // No Agenda
+- ulp_satker_unit_pengendali_id: number // Foreign Key to ulp_satker_unit_codes.id - Kode Unit Kerja Pengendali
+- ulp_satker_unit_enduser_id: number // Foreign Key to ulp_satker_unit_codes.id - Kode End User
+- surat_enduser_no: string // No Surat Pemilihan
+- surat_enduser_tgl: date // Tanggal Surat Pemilihan
+- surat_enduser_hal: string // Hal Surat Pemilihan
+- ulp_ppk_code_id: number // Foreign Key to ulp_ppk_codes.id - Kode PPK
+- surat_ppk_no: string // No Surat PPK
+- dpp_tgl: date // Tanggal DPP
+- surat_ppk_hal: string // Hal Surat PPK
+- paket_pbj_nama: string // Nama Paket PBJ
+- anggaran_pagu_nonaktif: number // Pagu Anggaran Non-Aktif
+- anggaran_pagu_aktif: number // Pagu Anggaran Aktif
+- ulp_mak_code_id: number // Foreign Key to ulp_mak_codes.id - Kode Mak
+- kelompok_belanja_modal: number // Kelompok Belanja Modal
+- kelompok_belanja_operasional: number // Kelompok Belanja Operasional
+- keterangan_tambahan: enum["Kaji Ulang PPK", "Sedang Berproses", "Selesai Dilaporkan"]  // Keterangan Tambahan
+- created_at: string // Waktu Dibuat
+- updated_at: string // Waktu Diperbarui
+- deleted_at: string // Waktu Dihapus
+
+table: ulp_stage_processes // List Tahap Proses Pemilihan
+- id: number // Unique Identifier
+- ulp_stage_preparation_id: number // Foreign Key to ulp_stage_preperations.id - Tahap Persiapan Pemilihan
+- is_rup: boolean // RUP
+- is_eproc: boolean // EProc
+- is_manual: boolean // Manual
+- rup_kode: string // Kode RUP
+- metode_pemilihan: enum["E-Pengadaan Langsung", "E-Penunjukan Langsung", "E-Purchasing", "E-Tender", "Pengadaan Langsung", "Penunjukan Langsung", "Tender"] // Metode Pemilihan
+- kriteria_barangjasa: enum["Barang","Jasa Lainnya", "Pekerjaan Konstruksi"] // Kriteria Barang/Jasa
+- lembar_catatan_pengecekan_hps_tgl: date // Lembar Catatan Pengecekan HPS (Tanggal)
+- lembar_catatan_pengecekan_hps_pic: string // Lembar Catatan Pengecekan HPS (PIC)
+- koreksi_aritmatika_tgl: date // Koreksi Aritmatika (Tanggal)
+- koreksi_aritmatika_pic: string // Koreksi Aritmatika (PIC)
+- lembar_persiapan_tgl: date // Lembar Persiapan (Tanggal)
+- lembar_persiapan_pic_buat: string // Lembar Persiapan (PIC Buat)
+- lembar_persiapan_pic_pokja: string // Lembar Persiapan (PIC Ka. Pokja)
+- pengumuman_pemilihan_lpse_no: string // Pengumuman Pemilihan by LPSE (Nomor Lembar Pengumuman)
+- pengumuman_pemilihan_lpse_tgl: date // Pengumuman Pemilihan by LPSE (Tanggal)
+- pengumuman_pemilihan_lpse_pic: string // Hal Pengumuman Pemilihan by LPSE (PIC)
+- dokumen_pemilihan_spph_no: string // Dokumen Pemilihan / SPPH Dokumen Pengadaan / SPPH (No. Dok)
+- dokumen_pemilihan_spph_tgl: date // Dokumen Pemilihan / SPPH Dokumen Pengadaan / SPPH (Tgl)
+- dokumen_pemilihan_spph_pic: string // Dokumen Pemilihan / SPPH Dokumen Pengadaan / SPPH (PIC)
+- registrasi_draft_paket_pbj_spse_tgl: date // Registrasi Draft Paket PBJ by SPSE (Buat Paket) (Tgl)
+- registrasi_draft_paket_pbj_spse_pic: string // Registrasi Draft Paket PBJ by SPSE (Buat Paket) (PIC)
+- undangan_reviu_dpp_no: string // Undangan Reviu DPP (No. Dok)
+- undangan_reviu_dpp_tgl: date // Undangan Reviu DPP (Tgl)
+- undangan_reviu_dpp_pic: string // Undangan Reviu DPP (PIC)
+- lembar_daftar_hadir_reviu_dpp_tgl: date // Lembar Daftar Hadir Acara Reviu DPP (Tgl)
+- lembar_daftar_hadir_reviu_dpp_pic: string // Lembar Daftar Hadir Acara Reviu DPP (PIC)
+- ba_reviu_dpp_no: string // BA Reviu DPP (No. Dok)
+- ba_reviu_dpp_tgl: date // BA Reviu DPP (Tgl)
+- ba_reviu_dpp_pic: string // BA Reviu DPP (PIC)
+- undangan_pemberian_penjelasan_no: string // Undangan Pemberian Penjelasan (No. Dok)
+- undangan_pemberian_penjelasan_tgl: date // Undangan Pemberian Penjelasan (Tgl)
+- undangan_pemberian_penjelasan_pic: string // Undangan Pemberian Penjelasan (PIC)
+- lembar_daftar_hadir_pemberian_penjelasan_tgl: date // Lembar Daftar Hadir Pemberian Penjelasan (Tgl)
+- lembar_daftar_hadir_pemberian_penjelasan_pic: string // Lembar Daftar Hadir Pemberian Penjelasan (PIC)
+- ba_pemberian_penjelasan_no: string // BA Pemberian Penjelasan (No. Dok)
+- ba_pemberian_penjelasan_tgl: date // BA Pemberian Penjelasan (Tgl)
+- ba_pemberian_penjelasan_pic: string // BA Pemberian Penjelasan (PIC)
+- dekripsi_data_penawaran_tgl: date // Dekripsi Data Penawaran (Tgl)
+- dekripsi_data_penawaran_pic: string // Dekripsi Data Penawaran (PIC)
+- ba_pembukaan_dokumen_penawaran_no: string // BA Pembukaan Dokumen Penawaran (No. Dok)
+- ba_pembukaan_dokumen_penawaran_tgl: date // BA Pembukaan Dokumen Penawaran (Tgl)
+- ba_pembukaan_dokumen_penawaran_pic: string // BA Pembukaan Dokumen Penawaran (PIC)
+- lembar_koreksi_aritmatika_penawaran_harga_tgl: date // Lembar Koreksi Aritmatika Penawaran Harga (Tgl)
+- lembar_koreksi_aritmatika_penawaran_harga_pic: string // Lembar Koreksi Aritmatika Penawaran Harga (PIC)
+- kertas_kerja_evaluasi_penawaran_tgl: date // Kertas Kerja Evaluasi Penawaran (Tgl)
+- kertas_kerja_evaluasi_penawaran_pic: string // Kertas Kerja Evaluasi Penawaran (PIC)
+- ba_evaluasi_penawaran_no: string // BA Evaluasi Penawaran (No. Dok)
+- ba_evaluasi_penawaran_tgl: date // BA Evaluasi Penawaran (Tgl)
+- ba_evaluasi_penawaran_pic: string // BA Evaluasi Penawaran (PIC)
+- undangan_verifikasi_pembuktian_kualifikasi_no: string // Undangan Verifikasi & Pembuktian Kualifikasi (No. Dok)
+- undangan_verifikasi_pembuktian_kualifikasi_tgl: date // Undangan Verifikasi & Pembuktian Kualifikasi (Tgl)
+- undangan_verifikasi_pembuktian_kualifikasi_pic: string // Undangan Verifikasi & Pembuktian Kualifikasi (PIC)
+- lembar_daftar_hadir_verifikasi_pembuktian_kualifikasi_tgl: date // Lembar Daftar Hadir Verifikasi & Pembuktian Kualifikasi (Tgl)
+- lembar_daftar_hadir_verifikasi_pembuktian_kualifikasi_pic: string // Lembar Daftar Hadir Verifikasi & Pembuktian Kualifikasi (PIC)
+- lembar_nego_teknis_harga_tgl: date // Lembar Nego Teknis dan Harga (Jika Ada) (Tgl)
+- lembar_nego_teknis_harga_pic: string // Lembar Nego Teknis dan Harga (Jika Ada) (PIC)
+- ba_klarifikasi_negosiasi_harga_no: string // BA Klarifikasi dan Negosiasi Harga (No. Dok)
+- ba_klarifikasi_negosiasi_harga_tgl: date // BA Klarifikasi dan Negosiasi Harga (Tgl)
+- ba_klarifikasi_negosiasi_harga_pic: string // BA Klarifikasi dan Negosiasi Harga (PIC)
+- ba_hasil_pemilihan_no: string // BA Hasil Pemilihan (No. Dok)
+- ba_hasil_pemilihan_tgl: date // BA Hasil Pemilihan (Tgl)
+- ba_hasil_pemilihan_pic: string // BA Hasil Pemilihan (PIC)
+- penetapan_pemenang_pemilihan_no: string // Penetapan Pemenang Pemilihan (No. Dok)
+- penetapan_pemenang_pemilihan_tgl: date // Penetapan Pemenang Pemilihan (Tgl)
+- penetapan_pemenang_pemilihan_pic: string // Penetapan Pemenang Pemilihan (PIC)
+- pengumuman_pemenang_pemilihan_no: string // Pengumuman Pemenang Pemilihan (No. Dok)
+- pengumuman_pemenang_pemilihan_tgl: date // Pengumuman Pemenang Pemilihan (Tgl)
+- pengumuman_pemenang_pemilihan_pic: string // Pengumuman Pemenang Pemilihan (PIC)
+- sanggahan_no: string // Sanggahan (No. Dok)
+- sanggahan_tgl: date // Sanggahan (Tgl Sanggah)
+- sanggahan_nama_peserta: string // Sanggahan (Nama Peserta)
+- jawaban_sanggah_no: string // Jawaban Sanggah (Jika Ada) (No. Dok)
+- jawaban_sanggah_tgl: date // Jawaban Sanggah (Jika Ada) (Tgl Dok)
+- jawaban_sanggah_pic: string // Jawaban Sanggah (Jika Ada) (PIC)
+- surat_usulan_kaji_ulang_paket_no: string // Surat Usulan Kaji Ulang Paket (No. Dok)
+- surat_usulan_kaji_ulang_paket_tgl: date // Surat Usulan Kaji Ulang Paket (Tgl)
+- surat_usulan_kaji_ulang_paket_pic: string // Surat Usulan Kaji Ulang Paket (PIC)
+- laporan_hasil_pemilihan_no: string // Laporan Hasil Pemilihan (No. Dok)
+- laporan_hasil_pemilihan_tgl: date // Laporan Hasil Pemilihan (Tgl)
+- laporan_hasil_pemilihan_pic: string // Laporan Hasil Pemilihan (PIC)
+- nilai_realisasi: number // Nilai Realisasi
+- dokumen_spb_spk_kontrak_pic: string // Dokumen SPB/SPK/Kontrak (PIC)
+- dokumen_spb_spk_kontrak_no: string // Dokumen SPB/SPK/Kontrak (Nomor)
+- dokumen_spb_spk_kontrak_tgl: date // Dokumen SPB/SPK/Kontrak (Tanggal)
+- nilai_kontrak_blu: number // Nilai Kontrak (Rp.) (BLU)
+- nilai_kontrak_non_blu: number // Nilai Kontrak (Rp.) (Non BLU)
+- jangka_waktu_pekerjaan: number // Jangka Waktu Pekerjaan
+- jangka_waktu_pekerjaan_satuan: string // Satuan Jangka Waktu Pekerjaan
+- ulp_perusahaan_id: number // Foreign Key ulp_perusahaan_codes - Perusahaan Penyedia Barang/Jasa
+- created_at: string // Waktu Dibuat
+- updated_at: string // Waktu Diperbarui
+- deleted_at: string // Waktu Dihapus

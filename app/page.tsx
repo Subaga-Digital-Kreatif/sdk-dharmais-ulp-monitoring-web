@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
@@ -7,16 +9,17 @@ import {
   Play,
   Pause,
   ShieldCheck,
-  Users,
   CalendarRange,
   LayoutDashboard,
   Package,
-  Wallet,
   Activity,
   Database,
+  FileText,
+  LogOut,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -24,10 +27,9 @@ import { OverviewView } from "./dashboard/overview-view";
 import { PaketView } from "./dashboard/paket-view";
 import { AnggaranView } from "./dashboard/anggaran-view";
 import { ProgresView } from "./dashboard/progres-view";
-import { MasterDataView } from "./dashboard/master-data-view";
 import { loadUlpData, UlpData } from "./dashboard/data-loader";
 
-type DashboardView = "overview" | "paket" | "anggaran" | "progres" | "master";
+type DashboardView = "overview" | "persiapan" | "proses" | "laporan";
 
 type PeriodPreset = "today" | "7d" | "30d" | "custom";
 
@@ -37,9 +39,15 @@ type PeriodState = {
   to: string;
 };
 
-const orderedViews: DashboardView[] = ["overview", "paket", "anggaran", "progres"];
+const orderedViews: DashboardView[] = [
+  "overview",
+  "persiapan",
+  "proses",
+  "laporan",
+];
 
 export default function Home() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<DashboardView>("overview");
   const [autoRotate, setAutoRotate] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +59,22 @@ export default function Home() {
   });
   const isDesktop = useIsDesktop();
 
+  const isAuthed = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return (
+        localStorage.getItem("ulp_auth_demo") === "1" ||
+        sessionStorage.getItem("ulp_auth_demo") === "1"
+      );
+    } catch {
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthed) router.replace("/login");
+  }, [isAuthed, router]);
+
   useAutoRotate({
     enabled: autoRotate && isDesktop,
     activeView,
@@ -58,6 +82,7 @@ export default function Home() {
   });
 
   useEffect(() => {
+    if (!isAuthed) return;
     const timeout = setTimeout(() => setIsLoading(false), 800);
     loadUlpData().then((data) => {
       setUlpData(data);
@@ -98,7 +123,7 @@ export default function Home() {
       }
     });
     return () => clearTimeout(timeout);
-  }, []);
+  }, [isAuthed]);
 
   useEffect(() => {
     if (
@@ -113,6 +138,15 @@ export default function Home() {
       .register("/sw.js")
       .catch(() => {});
   }, []);
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem("ulp_auth_demo");
+      sessionStorage.removeItem("ulp_auth_demo");
+    } catch {
+    }
+    router.push("/login");
+  };
 
   const filteredData = useMemo(() => {
     if (!ulpData.length) return [];
@@ -134,13 +168,9 @@ export default function Home() {
     });
   }, [ulpData, period]);
 
-  const viewLabel = useMemo(() => {
-    if (activeView === "overview") return "Ringkasan Eksekutif";
-    if (activeView === "paket") return "Daftar Paket Pengadaan";
-    if (activeView === "anggaran") return "Analisis Anggaran & HPS";
-    if (activeView === "progres") return "Status & Progres Pengadaan";
-    return "Master Data";
-  }, [activeView]);
+  if (!isAuthed) {
+    return <div className="min-h-screen bg-[#F7FBFF]" />;
+  }
 
   const handleSetPreset = (preset: PeriodPreset) => {
     const today = new Date();
@@ -204,6 +234,16 @@ export default function Home() {
             <CalendarClock className="h-3.5 w-3.5" />
             <span>Realtime Monitoring</span>
           </div>
+          <Button asChild variant="outline" size="sm" className="h-8 gap-2">
+            <Link href="/master-data">
+              <Database className="h-4 w-4" />
+              Master Data
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 gap-2" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </header>
 
@@ -236,23 +276,19 @@ export default function Home() {
               <TabsList>
                 <TabsTrigger value="overview" className="gap-2">
                    <LayoutDashboard className="h-4 w-4" />
-                   <span className="hidden lg:inline">Ringkasan</span>
+                   <span className="hidden lg:inline">Overview</span>
                 </TabsTrigger>
-                <TabsTrigger value="paket" className="gap-2">
+                <TabsTrigger value="persiapan" className="gap-2">
                    <Package className="h-4 w-4" />
-                   <span className="hidden lg:inline">Daftar Paket</span>
+                   <span className="hidden lg:inline">Persiapan Pemilihan</span>
                 </TabsTrigger>
-                <TabsTrigger value="anggaran" className="gap-2">
-                   <Wallet className="h-4 w-4" />
-                   <span className="hidden lg:inline">Anggaran</span>
-                </TabsTrigger>
-                <TabsTrigger value="progres" className="gap-2">
+                <TabsTrigger value="proses" className="gap-2">
                    <Activity className="h-4 w-4" />
-                   <span className="hidden lg:inline">Progres</span>
+                   <span className="hidden lg:inline">Proses Pemilihan</span>
                 </TabsTrigger>
-                <TabsTrigger value="master" className="gap-2">
-                   <Database className="h-4 w-4" />
-                   <span className="hidden lg:inline">Master Data</span>
+                <TabsTrigger value="laporan" className="gap-2">
+                   <FileText className="h-4 w-4" />
+                   <span className="hidden lg:inline">Laporan Capaian</span>
                 </TabsTrigger>
               </TabsList>
               <div className="flex flex-1 flex-col gap-1 rounded-2xl border border-[#C9E3FF] bg-white px-3 py-1.5 text-xs sm:flex-row sm:items-center">
@@ -348,28 +384,22 @@ export default function Home() {
             <OverviewView isLoading={isLoading} data={filteredData} />
           </TabsContent>
           <TabsContent
-            value="paket"
+            value="persiapan"
             className="flex-1 overflow-y-auto lg:overflow-hidden"
           >
             <PaketView isLoading={isLoading} data={filteredData} />
           </TabsContent>
           <TabsContent
-            value="anggaran"
-            className="flex-1 overflow-y-auto lg:overflow-hidden"
-          >
-            <AnggaranView isLoading={isLoading} data={filteredData} />
-          </TabsContent>
-          <TabsContent
-            value="progres"
+            value="proses"
             className="flex-1 overflow-y-auto lg:overflow-hidden"
           >
             <ProgresView isLoading={isLoading} data={filteredData} />
           </TabsContent>
           <TabsContent
-            value="master"
+            value="laporan"
             className="flex-1 overflow-y-auto lg:overflow-hidden"
           >
-            <MasterDataView isLoading={isLoading} data={ulpData} />
+            <AnggaranView isLoading={isLoading} data={filteredData} />
           </TabsContent>
         </Tabs>
       </div>
