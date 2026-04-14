@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ListOrdered, Wallet, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import {
   Card,
@@ -28,44 +28,154 @@ import {
   downloadCsv,
   type CsvRow,
 } from "./common";
-import { calculateUlpStats } from "./ulp-stats";
+import { getOverview, type OverviewResponse } from "@/models/overview";
+import { getMetodePemilihan } from "@/models/metode-pemilihan";
+import { getTopPaketRealisasi } from "@/models/top-paket-realisasi";
+import { getPaketPerEnduser } from "@/models/paket-per-enduser";
 
-export function AnggaranView({ isLoading, data }: CommonViewProps) {
+function toFiniteNumber(val: unknown, fallback = 0): number {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+export function AnggaranView({ isLoading }: CommonViewProps) {
   const [activeModal, setActiveModal] = useState<
     "trend" | "unit" | "top-projects" | null
   >(null);
+  const [apiLoading, setApiLoading] = useState(true);
+  const [apiData, setApiData] = useState<{
+    overview: OverviewResponse | null;
+    metode: Awaited<ReturnType<typeof getMetodePemilihan>> | null;
+    topPaket: Awaited<ReturnType<typeof getTopPaketRealisasi>> | null;
+    enduser: Awaited<ReturnType<typeof getPaketPerEnduser>> | null;
+  }>({
+    overview: null,
+    metode: null,
+    topPaket: null,
+    enduser: null,
+  });
 
-  const stats = useMemo(() => calculateUlpStats(data), [data]);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled([
+      getOverview(),
+      getMetodePemilihan(),
+      getTopPaketRealisasi(),
+      getPaketPerEnduser(),
+    ]).then((results) => {
+      if (cancelled) return;
+      const [o, m, t, e] = results;
+      setApiData({
+        overview: o.status === "fulfilled" ? o.value : null,
+        metode: m.status === "fulfilled" ? m.value : null,
+        topPaket: t.status === "fulfilled" ? t.value : null,
+        enduser: e.status === "fulfilled" ? e.value : null,
+      });
+      setApiLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const trendData = stats.trendData.map(d => ({
-    label: d.date,
-    pagu: d.pagu,
-    hps: d.hps,
-    saving: d.pagu - d.hps
-  }));
+  const trendData = useMemo(
+    () =>
+      (apiData.topPaket ?? []).slice(0, 10).map((x) => {
+        const kontrak = toFiniteNumber(x.nilai_kontrak);
+        const realisasi = toFiniteNumber(x.nilai_realisasi);
+        return {
+          label: x.paket_pbj_nama,
+          pagu: kontrak,
+          hps: realisasi,
+          saving: kontrak - realisasi,
+        };
+      }),
+    [apiData.topPaket],
+  );
 
-  // Helper for rendering currency
-  const fmtMoney = (val: number) => 
-    "Rp " + (val / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " M";
+  const unitRows = useMemo(() => {
+    const rows = (apiData.enduser ?? []).map((u) => ({
+      name: u.satker_unit_nama || "-",
+      pagu: toFiniteNumber(u.total_pagu),
+      count: toFiniteNumber(u.jumlah_paket),
+    }));
+    const total = rows.reduce((sum, r) => sum + r.pagu, 0);
+    return rows.map((r) => ({
+      ...r,
+      share: total > 0 ? (r.pagu / total) * 100 : 0,
+    }));
+  }, [apiData.enduser]);
+
+  const methodRows = useMemo(() => {
+    const rows = (apiData.metode ?? []).map((m) => ({
+      name: m.metode || "-",
+      count: toFiniteNumber(m.count),
+    }));
+    const total = rows.reduce((sum, r) => sum + r.count, 0);
+    return rows.map((r) => ({
+      ...r,
+      share: total > 0 ? (r.count / total) * 100 : 0,
+    }));
+  }, [apiData.metode]);
+
+  // Helper for rendering currency (adaptive units to avoid misleading 0 M)
+  const fmtMoney = (val: number) => {
+    const abs = Math.abs(val);
+    if (abs >= 1_000_000_000) {
+      return `Rp ${(val / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
+    }
+    if (abs >= 1_000_000) {
+      return `Rp ${(val / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} Jt`;
+    }
+    if (abs >= 1_000) {
+      return `Rp ${(val / 1_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} Rb`;
+    }
+    return `Rp ${val.toLocaleString("id-ID")}`;
+  };
 
   // Calculate top savings projects
   const topSavings = useMemo(() => {
-    return [...data]
-      .map(d => ({
-        name: d.namaPaketPbj || "Unnamed",
-        unit: d.unitKerja || "-",
-        pagu: d.paguAnggaranAktif || 0,
-        hps: d.hps || 0,
-        saving: (d.paguAnggaranAktif || 0) - (d.hps || 0)
-      }))
+    return (apiData.topPaket ?? [])
+      .map((d) => {
+        const kontrak = toFiniteNumber(d.nilai_kontrak);
+        const realisasi = toFiniteNumber(d.nilai_realisasi);
+        return {
+          name: d.paket_pbj_nama || "Unnamed",
+          unit: d.perusahaan_nama || "-",
+          pagu: kontrak,
+          hps: realisasi,
+          saving: kontrak - realisasi,
+        };
+      })
       .sort((a, b) => b.saving - a.saving)
       .slice(0, 5);
-  }, [data]);
+  }, [apiData.topPaket]);
+
+  const totalKontrak = toFiniteNumber(apiData.overview?.totalNilaiKontrak);
+  const totalRealisasi = toFiniteNumber(apiData.overview?.totalRealisasi);
+  const totalGap = totalKontrak - totalRealisasi;
+  const realisasiPercentage =
+    totalKontrak > 0
+      ? (totalRealisasi / totalKontrak) * 100
+      : toFiniteNumber(apiData.overview?.persentaseRealisasi);
+  const trendInsights = useMemo(() => {
+    const paketCount = trendData.length;
+    const totalSavingTopList = trendData.reduce((sum, x) => sum + x.saving, 0);
+    const avgSaving = paketCount > 0 ? totalSavingTopList / paketCount : 0;
+    const positiveCount = trendData.filter((x) => x.saving >= 0).length;
+    const positiveShare = paketCount > 0 ? (positiveCount / paketCount) * 100 : 0;
+    return {
+      paketCount,
+      avgSaving,
+      positiveShare,
+    };
+  }, [trendData]);
+  const sectionLoading = isLoading || apiLoading;
 
   let modal = null;
 
   if (activeModal === "trend") {
-    const headers = ["Tanggal", "Total Pagu", "Total HPS", "Selisih (Hemat)"];
+    const headers = ["Paket", "Nilai Kontrak", "Nilai Realisasi", "Selisih"];
     const rows = trendData.map((row) => [
       row.label,
       row.pagu.toLocaleString("id-ID"),
@@ -74,9 +184,9 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
     ]);
     const handleExport = () => {
       const csvRows: CsvRow[] = trendData.map((row) => ({
-        tanggal: row.label,
-        pagu: row.pagu,
-        hps: row.hps,
+        paket: row.label,
+        nilaiKontrak: row.pagu,
+        nilaiRealisasi: row.hps,
         selisih: row.saving,
       }));
       downloadCsv("ulp-trend-anggaran.csv", csvRows);
@@ -84,8 +194,8 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
 
     modal = (
       <DataModal
-        title="Detail Trend Anggaran"
-        description="Perbandingan Pagu vs HPS Harian."
+        title="Detail Statistik Realisasi"
+        description="Perbandingan nilai kontrak dan nilai realisasi per paket."
         headers={headers}
         rows={rows}
         onClose={() => setActiveModal(null)}
@@ -95,14 +205,14 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
     );
   } else if (activeModal === "unit") {
     const headers = ["Unit Kerja", "Total Pagu", "Jumlah Paket", "Share (%)"];
-    const rows = stats.byUnitKerja.map((item) => [
+    const rows = unitRows.map((item) => [
       item.name,
       item.pagu.toLocaleString("id-ID"),
       item.count,
       item.share.toFixed(1),
     ]);
     const handleExport = () => {
-      const csvRows: CsvRow[] = stats.byUnitKerja.map((item) => ({
+      const csvRows: CsvRow[] = unitRows.map((item) => ({
         unitKerja: item.name,
         totalPagu: item.pagu,
         jumlahPaket: item.count,
@@ -123,7 +233,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
       />
     );
   } else if (activeModal === "top-projects") {
-    const headers = ["Nama Paket", "Unit Kerja", "Pagu", "HPS", "Selisih (Hemat)"];
+    const headers = ["Nama Paket", "Penyedia", "Nilai Kontrak", "Nilai Realisasi", "Selisih"];
     const rows = topSavings.map((item) => [
       item.name,
       item.unit,
@@ -134,10 +244,10 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
     const handleExport = () => {
       const csvRows: CsvRow[] = topSavings.map((item) => ({
         namaPaket: item.name,
-        unitKerja: item.unit,
-        pagu: item.pagu,
-        hps: item.hps,
-        saving: item.saving,
+        penyedia: item.unit,
+        nilaiKontrak: item.pagu,
+        nilaiRealisasi: item.hps,
+        selisih: item.saving,
       }));
       downloadCsv("ulp-top-efisiensi.csv", csvRows);
     };
@@ -145,7 +255,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
     modal = (
       <DataModal
         title="Top Efisiensi Paket"
-        description="Paket dengan selisih Pagu dan HPS terbesar."
+        description="Paket dengan selisih kontrak dan realisasi terbesar."
         headers={headers}
         rows={rows}
         onClose={() => setActiveModal(null)}
@@ -164,7 +274,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
             <div>
               <CardTitle>Analisa Anggaran & Efisiensi</CardTitle>
               <CardDescription>
-                Monitoring Pagu vs HPS dan potensi penghematan
+                Monitoring nilai kontrak vs realisasi dan selisihnya
               </CardDescription>
             </div>
             <Button
@@ -180,45 +290,45 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
           <CardContent className="flex flex-1 flex-col gap-2">
             <div className="grid gap-3 text-xs grid-cols-2 md:grid-cols-4">
               <KpiStat
-                label="Total Pagu"
-                value={fmtMoney(stats.totalPagu)}
-                helper="Ceiling anggaran"
+                label="Total Kontrak"
+                value={fmtMoney(totalKontrak)}
+                helper="Akumulasi nilai kontrak"
                 tone="neutral"
                 icon={Wallet}
               />
               <KpiStat
-                label="Total HPS"
-                value={fmtMoney(stats.totalHps)}
-                helper="Harga Perkiraan"
+                label="Total Realisasi"
+                value={fmtMoney(totalRealisasi)}
+                helper="Akumulasi nilai realisasi"
                 tone="neutral"
                 icon={DollarSign}
               />
               <KpiStat
-                label="Potensi Hemat"
-                value={fmtMoney(stats.totalSavings)}
-                helper="Selisih Pagu - HPS"
-                tone="positive"
-                icon={TrendingUp}
+                label="Selisih Kontrak"
+                value={fmtMoney(totalGap)}
+                helper="Kontrak - realisasi"
+                tone={totalGap >= 0 ? "positive" : "negative"}
+                icon={totalGap >= 0 ? TrendingUp : TrendingDown}
               />
               <KpiStat
-                label="Rasio Efisiensi"
-                value={`${stats.savingsPercentage.toFixed(1)}%`}
-                helper="% Penghematan"
-                tone={stats.savingsPercentage > 0 ? "positive" : "negative"}
-                icon={stats.savingsPercentage > 0 ? TrendingUp : TrendingDown}
+                label="Rasio Realisasi"
+                value={`${realisasiPercentage.toFixed(1)}%`}
+                helper="% realisasi terhadap kontrak"
+                tone={realisasiPercentage >= 100 ? "positive" : "neutral"}
+                icon={realisasiPercentage >= 100 ? TrendingUp : TrendingDown}
               />
             </div>
-            {isLoading ? (
+            {sectionLoading ? (
               <Skeleton className="mt-1 h-40 w-full" />
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex h-full flex-1 flex-col gap-2">
                 <div className="flex items-center justify-between text-xs text-[#5B6B7F]">
-                  <span>Grafik Perbandingan Pagu vs HPS</span>
+                  <span>Grafik Perbandingan Kontrak vs Realisasi</span>
                   <span>
-                    {trendData.length > 0 ? `${trendData.length} hari data` : "Tidak ada data"}
+                    {trendData.length > 0 ? `${trendData.length} paket data` : "Tidak ada data"}
                   </span>
                 </div>
-                <div className="h-40 overflow-hidden rounded-xl bg-[#F7FBFF] p-3">
+                <div className="min-h-[220px] flex-1 overflow-hidden rounded-xl bg-[#F7FBFF] p-3">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={trendData}
@@ -260,19 +370,35 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
                       <Bar
                         dataKey="pagu"
                         radius={[4, 4, 0, 0]}
-                        name="Pagu Anggaran"
+                        name="Nilai Kontrak"
                         fill="#3b82f6"
                         barSize={20}
                       />
                       <Bar
                         dataKey="hps"
                         radius={[4, 4, 0, 0]}
-                        name="HPS"
+                        name="Nilai Realisasi"
                         fill="#10b981"
                         barSize={20}
                       />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="grid gap-2 text-[11px] text-[#5B6B7F] md:grid-cols-3">
+                  <div className="rounded-lg border bg-white p-2">
+                    <div className="font-medium text-[#0B1E33]">Rata-rata Hemat/Paket</div>
+                    <div className="text-xs text-emerald-600">{fmtMoney(trendInsights.avgSaving)}</div>
+                  </div>
+                  <div className="rounded-lg border bg-white p-2">
+                    <div className="font-medium text-[#0B1E33]">Paket Efisien</div>
+                    <div className="text-xs text-[#0B1E33]">
+                      {trendInsights.positiveShare.toFixed(1)}% dari {trendInsights.paketCount} paket
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-white p-2">
+                    <div className="font-medium text-[#0B1E33]">Total Potensi Hemat</div>
+                    <div className="text-xs text-emerald-600">{fmtMoney(totalGap)}</div>
+                  </div>
                 </div>
               </div>
             )}
@@ -297,12 +423,12 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
             </Button>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto">
-            {isLoading ? (
+            {sectionLoading ? (
               <Skeleton className="h-full w-full" />
             ) : (
               <BarListPlaceholder
                 title="Unit Kerja"
-                items={stats.byUnitKerja.map((item) => ({
+                items={unitRows.map((item) => ({
                   label: item.name,
                   primary: parseFloat(item.share.toFixed(1)),
                   secondary: item.share,
@@ -317,7 +443,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
             <div>
               <CardTitle>Top Efisiensi (Hemat)</CardTitle>
-              <CardDescription>Paket dengan selisih Pagu-HPS terbesar</CardDescription>
+              <CardDescription>Paket dengan selisih kontrak-realisasi terbesar</CardDescription>
             </div>
              <Button
               type="button"
@@ -330,7 +456,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
             </Button>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto">
-             {isLoading ? (
+             {sectionLoading ? (
               <Skeleton className="h-full w-full" />
             ) : (
               <div className="space-y-4">
@@ -347,7 +473,7 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
                         {fmtMoney(item.saving)}
                       </span>
                       <span className="text-[10px] text-[#5B6B7F]">
-                        Pagu: {fmtMoney(item.pagu)}
+                        Kontrak: {fmtMoney(item.pagu)}
                       </span>
                     </div>
                   </div>
@@ -360,18 +486,18 @@ export function AnggaranView({ isLoading, data }: CommonViewProps) {
         {/* Row 2: Budget Composition (Method) */}
         <Card className="flex flex-col lg:col-span-6 lg:row-span-1">
           <CardHeader className="pb-2">
-            <CardTitle>Distribusi Jenis Belanja</CardTitle>
+            <CardTitle>Distribusi Metode Pemilihan</CardTitle>
             <CardDescription>
-              Proporsi anggaran berdasarkan metode/jenis belanja
+              Komposisi jumlah paket berdasarkan metode pemilihan
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-1 overflow-hidden">
-             {isLoading ? (
+             {sectionLoading ? (
                <Skeleton className="h-full w-full" />
             ) : (
               <BarListPlaceholder
-                title="Metode / MAK"
-                items={stats.byMethod.slice(0, 5).map((item) => ({
+                title="Metode Pemilihan"
+                items={methodRows.slice(0, 5).map((item) => ({
                   label: item.name,
                   primary: parseFloat(item.share.toFixed(1)),
                   secondary: item.share,
