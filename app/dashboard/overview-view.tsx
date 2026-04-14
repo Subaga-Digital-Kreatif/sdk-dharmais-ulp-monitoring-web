@@ -1,10 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   DollarSign,
   TrendingUp,
   ArrowUpRight,
   Activity,
   Layers,
+  FileText,
   PieChart as PieChartIcon,
   BarChart as BarChartIcon
 } from "lucide-react";
@@ -40,14 +43,146 @@ import {
   type CsvRow,
 } from "./common";
 import { calculateUlpStats } from "./ulp-stats";
+import { getOverview, type OverviewResponse } from "@/models/overview";
+import { getMetodePemilihan } from "@/models/metode-pemilihan";
+import { getTopPaketRealisasi } from "@/models/top-paket-realisasi";
+import { getPaketPerEnduser } from "@/models/paket-per-enduser";
+import { cn } from "@/lib/utils";
 
 type OverviewModalType = "trend" | "breakdown" | "risk" | null;
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1"];
 
+function toFiniteNumber(val: unknown, fallback = 0): number {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Formats IDR in billions (M); tolerates missing/invalid API values. */
+function formatLargeCurrency(val: unknown) {
+  const safe = toFiniteNumber(val, 0);
+  return `Rp ${(safe / 1_000_000_000).toLocaleString("id-ID", {
+    maximumFractionDigits: 1,
+  })} M`;
+}
+
+type OverviewKpiRowItem = {
+  label: string;
+  icon: LucideIcon;
+  value: ReactNode;
+  helper?: ReactNode;
+  valueClassName?: string;
+  valueTitle?: string;
+};
+
+type OverviewKpiCardProps = {
+  label: string;
+  icon: LucideIcon;
+  loading: boolean;
+  value: ReactNode;
+  helper?: ReactNode;
+  valueClassName?: string;
+  valueTitle?: string;
+};
+
+function OverviewKpiCard({
+  label,
+  icon: Icon,
+  loading,
+  value,
+  helper,
+  valueClassName,
+  valueTitle,
+}: OverviewKpiCardProps) {
+  return (
+    <Card className="shadow-sm flex flex-col justify-center border-[#E1ECF7]">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {label}
+        </CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        {loading ? (
+          <Skeleton className="h-8 w-24" />
+        ) : (
+          <>
+            <div
+              className={cn(
+                "font-bold text-[#0B1E33]",
+                valueClassName ?? "text-xl lg:text-2xl",
+              )}
+              title={valueTitle}
+            >
+              {value}
+            </div>
+            {helper != null && (
+              <p className="text-[10px] lg:text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-1">
+                {helper}
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function OverviewView({ isLoading, data }: CommonViewProps) {
   const [activeModal, setActiveModal] = useState<OverviewModalType>(null);
-  
+  const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [overviewStatus, setOverviewStatus] = useState<
+    "loading" | "ok" | "error"
+  >("loading");
+  const [overviewApiLoading, setOverviewApiLoading] = useState(true);
+  const [overviewApiData, setOverviewApiData] = useState<{
+    metode: Awaited<ReturnType<typeof getMetodePemilihan>> | null;
+    topPaket: Awaited<ReturnType<typeof getTopPaketRealisasi>> | null;
+    enduser: Awaited<ReturnType<typeof getPaketPerEnduser>> | null;
+  }>({
+    metode: null,
+    topPaket: null,
+    enduser: null,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    getOverview()
+      .then((d) => {
+        if (!cancelled) {
+          setOverview(d);
+          setOverviewStatus("ok");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOverviewStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.allSettled([
+      getMetodePemilihan(),
+      getTopPaketRealisasi(),
+      getPaketPerEnduser(),
+    ]).then((results) => {
+      if (cancelled) return;
+      const [m, p, e] = results;
+      setOverviewApiData({
+        metode: m.status === "fulfilled" ? m.value : null,
+        topPaket: p.status === "fulfilled" ? p.value : null,
+        enduser: e.status === "fulfilled" ? e.value : null,
+      });
+      setOverviewApiLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const stats = useMemo(() => calculateUlpStats(data), [data]);
 
   const trendData = useMemo(() => {
@@ -60,31 +195,215 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
     }));
   }, [stats.trendData]);
 
-  // Handle Modal Logic
-  let modal = null;
+  const realisasiStatsData = useMemo(() => {
+    if (overviewApiData.topPaket && overviewApiData.topPaket.length > 0) {
+      return overviewApiData.topPaket.slice(0, 10).map((x) => {
+        const kontrak = toFiniteNumber(x.nilai_kontrak);
+        const realisasi = toFiniteNumber(x.nilai_realisasi);
+        return {
+          label: x.paket_pbj_nama,
+          paguM: kontrak,
+          hpsM: realisasi,
+          count: 1,
+          efficiency: kontrak > 0 ? (realisasi / kontrak) * 100 : 0,
+          source: "api" as const,
+        };
+      });
+    }
+    return trendData.map((x) => ({ ...x, source: "local" as const }));
+  }, [overviewApiData.topPaket, trendData]);
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+      notation: "compact", 
+      compactDisplay: "short"
+    }).format(val);
+  };
+
+  const kpiBusy =
+    overviewStatus === "loading" ||
+    (overviewStatus === "error" && isLoading);
+
+  const kpiItems = useMemo((): OverviewKpiRowItem[] => {
+    if (overviewStatus === "ok" && overview) {
+      const o = overview;
+      const pagu = toFiniteNumber(o.totalPagu);
+      const hps = toFiniteNumber(o.totalHps);
+      const packages = toFiniteNumber(o.totalPackages);
+      const realisasiPct = toFiniteNumber(o.persentaseRealisasi);
+      const hpsRatio =
+        pagu > 0 ? ((hps / pagu) * 100).toFixed(1) : "0.0";
+      return [
+        {
+          label: "Total Pagu",
+          icon: DollarSign,
+          value: formatLargeCurrency(o.totalPagu),
+          helper: `${packages.toLocaleString("id-ID")} paket terdaftar`,
+        },
+        {
+          label: "Total HPS",
+          icon: Activity,
+          value: formatLargeCurrency(o.totalHps),
+          helper: (
+            <>
+              <span className="text-emerald-600 font-medium">{hpsRatio}%</span>
+              <span>rasio terhadap Pagu</span>
+            </>
+          ),
+        },
+        {
+          label: "Total Realisasi",
+          icon: TrendingUp,
+          value: formatLargeCurrency(o.totalRealisasi),
+          valueClassName: "text-emerald-600",
+          helper: (
+            <>
+              <span>{realisasiPct.toFixed(1)}%</span>
+              <span>persentase realisasi</span>
+            </>
+          ),
+        },
+        {
+          label: "Nilai Kontrak",
+          icon: FileText,
+          value: formatLargeCurrency(o.totalNilaiKontrak),
+          helper: "Akumulasi nilai kontrak",
+        },
+      ];
+    }
+
+    const topMethod = stats.byMethod[0];
+    return [
+      {
+        label: "Total Pagu",
+        icon: DollarSign,
+        value: formatLargeCurrency(stats.totalPagu),
+        helper: `Dari ${stats.totalPackages} paket terdaftar`,
+      },
+      {
+        label: "Total HPS",
+        icon: Activity,
+        value: formatLargeCurrency(stats.totalHps),
+        helper: (
+          <>
+            <span className="text-emerald-600 font-medium">
+              {(stats.totalPagu > 0
+                ? (stats.totalHps / stats.totalPagu) * 100
+                : 0
+              ).toFixed(1)}
+              %
+            </span>
+            <span>rasio terhadap Pagu</span>
+          </>
+        ),
+      },
+      {
+        label: "Total Hemat",
+        icon: TrendingUp,
+        value: formatLargeCurrency(stats.totalSavings),
+        valueClassName: "text-emerald-600",
+        helper: `${stats.savingsPercentage.toFixed(1)}% efisiensi anggaran`,
+      },
+      {
+        label: "Metode Top",
+        icon: Layers,
+        value: topMethod?.name ?? "-",
+        valueClassName: "text-lg lg:text-xl truncate",
+        valueTitle: topMethod?.name,
+        helper: `${topMethod?.count ?? 0} paket (${(topMethod?.share ?? 0).toFixed(1)}% share)`,
+      },
+    ];
+  }, [overviewStatus, overview, stats]);
+
+  const metodeChartData = useMemo(() => {
+    if (overviewApiData.metode && overviewApiData.metode.length > 0) {
+      const total = overviewApiData.metode.reduce(
+        (s, x) => s + toFiniteNumber(x.count),
+        0,
+      );
+      return overviewApiData.metode.map((x) => ({
+        name: x.metode || "-",
+        value: toFiniteNumber(x.count),
+        share: total > 0 ? (toFiniteNumber(x.count) / total) * 100 : 0,
+        source: "api" as const,
+      }));
+    }
+    return stats.byMethod.map((x) => ({
+      name: x.name,
+      value: x.pagu,
+      share: x.share,
+      source: "local" as const,
+    }));
+  }, [overviewApiData.metode, stats.byMethod]);
+
+  const topPaketRows = useMemo(() => {
+    if (overviewApiData.topPaket && overviewApiData.topPaket.length > 0) {
+      return overviewApiData.topPaket.map((x) => ({
+        id: x.id,
+        name: x.paket_pbj_nama,
+        unitOrVendor: x.perusahaan_nama,
+        paguOrRealisasi: toFiniteNumber(x.nilai_realisasi),
+        compareValue: toFiniteNumber(x.nilai_kontrak),
+        fromApi: true,
+      }));
+    }
+    return stats.topProjects.map((x, idx) => ({
+      id: idx,
+      name: x.name,
+      unitOrVendor: x.unit,
+      paguOrRealisasi: x.pagu,
+      compareValue: x.hps,
+      fromApi: false,
+    }));
+  }, [overviewApiData.topPaket, stats.topProjects]);
+
+  const unitChartData = useMemo(() => {
+    if (overviewApiData.enduser && overviewApiData.enduser.length > 0) {
+      return overviewApiData.enduser.slice(0, 5).map((x) => ({
+        name: x.satker_unit_nama || "-",
+        value: toFiniteNumber(x.total_pagu),
+        count: toFiniteNumber(x.jumlah_paket),
+        source: "api" as const,
+      }));
+    }
+    return stats.byUnitKerja.slice(0, 5).map((x) => ({
+      name: x.name,
+      value: x.pagu,
+      count: x.count,
+      source: "local" as const,
+    }));
+  }, [overviewApiData.enduser, stats.byUnitKerja]);
+
+  let modal: React.ReactNode = null;
   if (activeModal === "trend") {
-    const headers = ["Tanggal", "Pagu (Rp)", "HPS (Rp)", "Paket", "Efisiensi (%)"];
-    const rows = trendData.map((row) => [
+    const apiTrend = realisasiStatsData[0]?.source === "api";
+    const headers = apiTrend
+      ? ["Nama Paket", "Nilai Kontrak (Rp)", "Nilai Realisasi (Rp)", "Serapan (%)"]
+      : ["Tanggal", "Pagu (Rp)", "HPS (Rp)", "Paket", "Efisiensi (%)"];
+    const rows = realisasiStatsData.map((row) => [
       row.label,
       row.paguM,
       row.hpsM,
-      row.count,
+      ...(apiTrend ? [] : [row.count]),
       row.efficiency.toFixed(2),
     ]);
     const handleExport = () => {
-      const csvRows: CsvRow[] = trendData.map((row) => ({
-        tanggal: row.label,
-        pagu: row.paguM,
-        hps: row.hpsM,
+      const csvRows: CsvRow[] = realisasiStatsData.map((row) => ({
+        label: row.label,
+        nilaiA: row.paguM,
+        nilaiB: row.hpsM,
         jumlahPaket: row.count,
-        efisiensiPct: row.efficiency,
+        persentase: row.efficiency,
       }));
       downloadCsv("overview-trend.csv", csvRows);
     };
     modal = (
       <DataModal
-        title="Detail Trend Harian"
-        description="Data harian Pagu, HPS, dan Efisiensi."
+        title={apiTrend ? "Detail Statistik Realisasi" : "Detail Trend Harian"}
+        description={apiTrend ? "Data API realisasi vs kontrak per paket." : "Data harian Pagu, HPS, dan Efisiensi."}
         headers={headers}
         rows={rows}
         onClose={() => setActiveModal(null)}
@@ -93,19 +412,17 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
       />
     );
   } else if (activeModal === "breakdown") {
-    const headers = ["Unit Kerja", "Pagu (Rp)", "Jumlah Paket", "Share (%)"];
-    const rows = stats.byUnitKerja.map((item) => [
+    const headers = ["Unit Kerja", "Pagu (Rp)", "Jumlah Paket"];
+    const rows = unitChartData.map((item) => [
       item.name,
-      item.pagu,
+      item.value,
       item.count,
-      item.share.toFixed(2),
     ]);
     const handleExport = () => {
-      const csvRows: CsvRow[] = stats.byUnitKerja.map((item) => ({
+      const csvRows: CsvRow[] = unitChartData.map((item) => ({
         unitKerja: item.name,
-        pagu: item.pagu,
+        pagu: item.value,
         jumlahPaket: item.count,
-        share: item.share,
       }));
       downloadCsv("overview-breakdown.csv", csvRows);
     };
@@ -120,27 +437,32 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
         exportLabel="Export CSV"
       />
     );
-  } else if (activeModal === "risk") { // Top Projects
-    const headers = ["Nama Paket", "Unit Kerja", "Pagu (Rp)", "HPS (Rp)"];
-    const rows = stats.topProjects.map((item) => [
+  } else if (activeModal === "risk") {
+    const headers = [
+      "Nama Paket",
+      topPaketRows[0]?.fromApi ? "Penyedia" : "Unit Kerja",
+      topPaketRows[0]?.fromApi ? "Nilai Realisasi (Rp)" : "Pagu (Rp)",
+      topPaketRows[0]?.fromApi ? "Nilai Kontrak (Rp)" : "HPS (Rp)",
+    ];
+    const rows = topPaketRows.map((item) => [
       item.name,
-      item.unit,
-      item.pagu,
-      item.hps,
+      item.unitOrVendor,
+      item.paguOrRealisasi,
+      item.compareValue,
     ]);
     const handleExport = () => {
-      const csvRows: CsvRow[] = stats.topProjects.map((item) => ({
+      const csvRows: CsvRow[] = topPaketRows.map((item) => ({
         namaPaket: item.name,
-        unit: item.unit,
-        pagu: item.pagu,
-        hps: item.hps,
+        unitAtauPenyedia: item.unitOrVendor,
+        nilaiA: item.paguOrRealisasi,
+        nilaiB: item.compareValue,
       }));
       downloadCsv("overview-top-projects.csv", csvRows);
     };
     modal = (
       <DataModal
-        title="Top 5 Paket Terbesar"
-        description="Paket dengan nilai Pagu tertinggi."
+        title={topPaketRows[0]?.fromApi ? "Top Paket Realisasi" : "Top 5 Paket Terbesar"}
+        description={topPaketRows[0]?.fromApi ? "Data dari API proses pemilihan." : "Paket dengan nilai Pagu tertinggi (data periode)."}
         headers={headers}
         rows={rows}
         onClose={() => setActiveModal(null)}
@@ -150,105 +472,25 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
     );
   }
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-      notation: "compact", 
-      compactDisplay: "short"
-    }).format(val);
-  };
-
-  const formatLargeCurrency = (val: number) => {
-     return `Rp ${(val / 1_000_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
-  }
-
   return (
-    <div className="flex flex-col gap-4 h-full lg:h-[calc(100vh-180px)] w-full">
+    <div className="flex flex-col gap-4 h-full min-h-0 overflow-y-auto lg:h-[calc(100vh-180px)] w-full">
       {/* 1. KPI Cards Row (Fixed Height on Desktop) */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 shrink-0">
-        <Card className="shadow-sm flex flex-col justify-center">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Total Pagu
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-xl lg:text-2xl font-bold">{formatLargeCurrency(stats.totalPagu)}</div>
-                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1">
-                  Dari {stats.totalPackages} paket terdaftar
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm flex flex-col justify-center">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Total HPS
-            </CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-xl lg:text-2xl font-bold">{formatLargeCurrency(stats.totalHps)}</div>
-                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1 flex items-center">
-                  <span className="text-emerald-600 font-medium mr-1">
-                    {(stats.totalPagu > 0 ? (stats.totalHps/stats.totalPagu)*100 : 0).toFixed(1)}%
-                  </span>
-                  rasio terhadap Pagu
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm flex flex-col justify-center">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Total Hemat
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-             {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-xl lg:text-2xl font-bold text-emerald-600">{formatLargeCurrency(stats.totalSavings)}</div>
-                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1">
-                  {stats.savingsPercentage.toFixed(1)}% efisiensi anggaran
-                </p>
-              </>
-             )}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm flex flex-col justify-center">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-4 pt-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Metode Top
-            </CardTitle>
-            <Layers className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-             {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-lg lg:text-xl font-bold truncate" title={stats.byMethod[0]?.name}>
-                  {stats.byMethod[0]?.name || "-"}
-                </div>
-                <p className="text-[10px] lg:text-xs text-muted-foreground mt-1">
-                  {stats.byMethod[0]?.count || 0} paket ({stats.byMethod[0]?.share.toFixed(1)}% share)
-                </p>
-              </>
-             )}
-          </CardContent>
-        </Card>
+        {kpiItems.map((item) => (
+          <OverviewKpiCard
+            key={item.label}
+            label={item.label}
+            icon={item.icon}
+            loading={kpiBusy}
+            value={item.value}
+            helper={item.helper}
+            valueClassName={item.valueClassName}
+            valueTitle={item.valueTitle}
+          />
+        ))}
       </div>
+
+      
 
       {/* 2. Main Grid Layout (Flexible Height) */}
       <div className="flex-1 grid gap-3 grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 min-h-0">
@@ -258,16 +500,20 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0">
              <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-medium">Trend Realisasi Anggaran</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {realisasiStatsData[0]?.source === "api"
+                    ? "Statistik Realisasi Anggaran"
+                    : "Trend Realisasi Anggaran"}
+                </CardTitle>
              </div>
              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("trend")}>
                 <ArrowUpRight className="h-3 w-3" />
              </Button>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 p-2">
-            {isLoading ? <Skeleton className="h-full w-full" /> : (
+            {isLoading || overviewApiLoading ? <Skeleton className="h-full w-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={realisasiStatsData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorPagu" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
@@ -303,7 +549,12 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                   <Tooltip 
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
                     formatter={(value: any, name: any) => {
-                      if (name === "Efisiensi") return [`${Number(value).toFixed(2)}%`, name];
+                      const apiTrend = realisasiStatsData[0]?.source === "api";
+                      if (name === "Efisiensi" || name === "Serapan")
+                        return [`${Number(value).toFixed(2)}%`, name];
+                      if (apiTrend && (name === "Realisasi" || name === "Kontrak")) {
+                        return [`Rp ${Number(value).toLocaleString('id-ID')}`, name];
+                      }
                       return [`Rp ${Number(value).toLocaleString('id-ID')}`, name];
                     }}
                   />
@@ -312,7 +563,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                     yAxisId="left" 
                     type="monotone" 
                     dataKey="paguM" 
-                    name="Pagu" 
+                    name={realisasiStatsData[0]?.source === "api" ? "Kontrak" : "Pagu"} 
                     stroke="#3b82f6" 
                     fillOpacity={1} 
                     fill="url(#colorPagu)" 
@@ -321,7 +572,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                   <Bar 
                     yAxisId="left" 
                     dataKey="hpsM" 
-                    name="HPS" 
+                    name={realisasiStatsData[0]?.source === "api" ? "Realisasi" : "HPS"} 
                     fill="#10b981" 
                     radius={[4, 4, 0, 0]} 
                     barSize={12} 
@@ -331,7 +582,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                     yAxisId="right" 
                     type="monotone" 
                     dataKey="efficiency" 
-                    name="Efisiensi" 
+                    name={realisasiStatsData[0]?.source === "api" ? "Serapan" : "Efisiensi"} 
                     stroke="#f59e0b" 
                     strokeWidth={2} 
                     dot={false}
@@ -342,7 +593,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
 
-        {/* Top Right: Method Pie (1 col) */}
+        {/* Top Right: Method Pie (1 col) — data periode (CSV) */}
         <Card className="lg:col-span-1 shadow-sm flex flex-col">
            <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0">
              <div className="flex items-center gap-2">
@@ -351,39 +602,49 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
              </div>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 p-2 relative flex flex-col items-center justify-center">
-              {isLoading ? <Skeleton className="h-full w-full rounded-full" /> : (
+              {isLoading || overviewApiLoading ? (
+                <Skeleton className="h-full w-full rounded-full" />
+              ) : metodeChartData.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 text-center">Tidak ada data</p>
+              ) : (
                 <>
                   <div className="w-full h-[60%]">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={stats.byMethod}
+                            data={metodeChartData}
                             cx="50%"
                             cy="50%"
                             innerRadius={30}
                             outerRadius={50}
                             paddingAngle={2}
-                            dataKey="pagu"
+                            dataKey="value"
+                            nameKey="name"
                           >
-                            {stats.byMethod.map((_, index) => (
+                            {metodeChartData.map((_, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
                           <Tooltip 
-                             formatter={(value: any) => formatCurrency(value)}
+                             formatter={(value) => [
+                               metodeChartData[0]?.source === "api"
+                                 ? Number(value ?? 0).toLocaleString("id-ID")
+                                 : formatCurrency(Number(value ?? 0)),
+                               metodeChartData[0]?.source === "api" ? "Paket" : "Pagu",
+                             ]}
                              contentStyle={{ fontSize: '11px', borderRadius: '8px' }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
                    </div>
                    <div className="w-full h-[40%] text-[10px] space-y-1 overflow-y-auto px-2 custom-scrollbar">
-                      {stats.byMethod.slice(0, 4).map((entry, index) => (
+                      {metodeChartData.slice(0, 4).map((entry, index) => (
                         <div key={index} className="flex items-center justify-between border-b border-dashed border-gray-100 pb-1 last:border-0">
                            <div className="flex items-center gap-1.5 truncate max-w-[120px]" title={entry.name}>
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                               <span className="truncate">{entry.name}</span>
                            </div>
-                           <span className="font-medium text-gray-600">{entry.share.toFixed(0)}%</span>
+                           <span className="font-medium text-gray-600">{toFiniteNumber(entry.share).toFixed(0)}%</span>
                         </div>
                       ))}
                    </div>
@@ -392,48 +653,58 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
 
-        {/* Bottom Left: Top Projects (2 cols) */}
+        {/* Bottom Left: Top paket */}
         <Card className="lg:col-span-2 shadow-sm flex flex-col overflow-hidden">
            <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0 bg-white z-10">
              <div className="flex items-center gap-2">
                 <Activity className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-medium">Top 5 Paket Terbesar</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {topPaketRows[0]?.fromApi ? "Top Paket Realisasi" : "Top 5 Paket Terbesar"}
+                </CardTitle>
              </div>
              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("risk")}>
                 <ArrowUpRight className="h-3 w-3" />
              </Button>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 p-0 overflow-auto">
-            {isLoading ? <Skeleton className="h-full w-full" /> : (
+            {isLoading || overviewApiLoading ? (
+              <Skeleton className="h-full w-full min-h-[120px]" />
+            ) : (
               <table className="w-full text-xs text-left">
                 <thead className="sticky top-0 bg-muted/20 text-muted-foreground font-medium z-10">
                   <tr>
                     <th className="px-3 py-2 font-medium w-[40%]">Nama Paket</th>
-                    <th className="px-3 py-2 font-medium w-[20%]">Unit</th>
-                    <th className="px-3 py-2 font-medium text-right w-[20%]">Pagu</th>
-                    <th className="px-3 py-2 font-medium text-right w-[20%]">Efisiensi</th>
+                    <th className="px-3 py-2 font-medium w-[20%]">{topPaketRows[0]?.fromApi ? "Penyedia" : "Unit"}</th>
+                    <th className="px-3 py-2 font-medium text-right w-[20%]">{topPaketRows[0]?.fromApi ? "Realisasi" : "Pagu"}</th>
+                    <th className="px-3 py-2 font-medium text-right w-[20%]">{topPaketRows[0]?.fromApi ? "Kontrak" : "Efisiensi"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {stats.topProjects.map((project, idx) => {
-                     const efficiency = project.pagu > 0 ? ((project.pagu - project.hps) / project.pagu) * 100 : 0;
+                  {topPaketRows.map((project) => {
+                     const efficiency = project.paguOrRealisasi > 0 ? ((project.paguOrRealisasi - project.compareValue) / project.paguOrRealisasi) * 100 : 0;
                      return (
-                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                      <tr key={project.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-3 py-2 align-top">
                           <div className="line-clamp-2 font-medium text-gray-700" title={project.name}>
                             {project.name}
                           </div>
                         </td>
                         <td className="px-3 py-2 align-top text-gray-500">
-                          <div className="line-clamp-1" title={project.unit}>{project.unit}</div>
+                          <div className="line-clamp-1" title={project.unitOrVendor}>{project.unitOrVendor}</div>
                         </td>
                         <td className="px-3 py-2 align-top text-right font-medium text-gray-700">
-                          {formatLargeCurrency(project.pagu)}
+                          {formatLargeCurrency(project.paguOrRealisasi)}
                         </td>
                         <td className="px-3 py-2 align-top text-right">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${efficiency > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                            {efficiency.toFixed(1)}%
-                          </span>
+                          {project.fromApi ? (
+                            <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                              {formatLargeCurrency(project.compareValue)}
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${efficiency > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                              {efficiency.toFixed(1)}%
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -444,23 +715,25 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
           </CardContent>
         </Card>
 
-        {/* Bottom Right: Unit Bar (1 col) */}
+        {/* Bottom Right: Top Unit Kerja */}
         <Card className="lg:col-span-1 shadow-sm flex flex-col">
            <CardHeader className="flex flex-row items-center justify-between py-2 px-4 border-b h-[45px] shrink-0">
              <div className="flex items-center gap-2">
                 <BarChartIcon className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-sm font-medium">Top Unit Kerja</CardTitle>
+                <CardTitle className="text-sm font-medium">{unitChartData[0]?.source === "api" ? "Top Enduser" : "Top Unit Kerja"}</CardTitle>
              </div>
              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveModal("breakdown")}>
                 <ArrowUpRight className="h-3 w-3" />
              </Button>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 p-2">
-             {isLoading ? <Skeleton className="h-full w-full" /> : (
+             {isLoading || overviewApiLoading ? (
+               <Skeleton className="h-full w-full min-h-[120px]" />
+             ) : (
                <ResponsiveContainer width="100%" height="100%">
                  <BarChart
                     layout="vertical"
-                    data={stats.byUnitKerja.slice(0, 5)}
+                    data={unitChartData}
                     margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
                     barSize={12}
                  >
@@ -476,10 +749,14 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                    <Tooltip 
                      cursor={{ fill: 'transparent' }}
                      contentStyle={{ fontSize: '11px', borderRadius: '8px' }}
-                     formatter={(val: any) => formatCurrency(val)}
+                     formatter={(val: unknown, _name: unknown, payload: any) =>
+                       payload?.payload?.source === "api"
+                         ? [formatCurrency(Number(val ?? 0)), `${toFiniteNumber(payload?.payload?.count)} paket`]
+                         : formatCurrency(Number(val ?? 0))
+                     }
                    />
-                   <Bar dataKey="pagu" radius={[0, 4, 4, 0]}>
-                     {stats.byUnitKerja.slice(0, 5).map((_, index) => (
+                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                     {unitChartData.map((_, index) => (
                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                      ))}
                    </Bar>
@@ -490,6 +767,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
         </Card>
 
       </div>
+
       {modal}
     </div>
   );

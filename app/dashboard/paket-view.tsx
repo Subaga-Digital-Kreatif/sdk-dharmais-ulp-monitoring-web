@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   ArrowUpRight,
@@ -52,6 +52,7 @@ import {
   type CsvRow,
 } from "./common";
 import { calculateUlpStats } from "./ulp-stats";
+import { getPersiapanSummary, type PersiapanSummaryResponse } from "@/models/persiapan-summary";
 
 type PaketModalType = "trend" | "range" | null;
 
@@ -62,8 +63,36 @@ export function PaketView({ isLoading, data }: CommonViewProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [selectedView, setSelectedView] = useState<"split" | "table" | "charts">("split");
+  const [summary, setSummary] = useState<PersiapanSummaryResponse | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
 
   const stats = useMemo(() => calculateUlpStats(data), [data]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPersiapanSummary()
+      .then((res: any) => {
+        const normalized =
+          res && typeof res === "object" && "data" in res ? res.data : res;
+        if (!cancelled) setSummary(normalized as PersiapanSummaryResponse);
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setSummaryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalPaket = summary?.totalPaket ?? stats.totalPackages;
+  const totalPagu = summary?.totalPagu ?? stats.totalPagu;
+  const totalHps = summary?.totalHps ?? stats.totalHps;
+  const avgPaket = totalPaket > 0 ? totalPagu / totalPaket : 0;
+  const kpiLoading = isLoading || summaryLoading;
 
   // Monthly Trend Calculation
   const monthlyTrend = useMemo(() => {
@@ -163,9 +192,29 @@ export function PaketView({ isLoading, data }: CommonViewProps) {
     }).format(val);
   };
 
-  const formatLargeCurrency = (val: number) => {
-     return `Rp ${(val / 1_000_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M`;
-  }
+  const toFiniteNumber = (val: unknown, fallback = 0): number => {
+    if (typeof val === "number") return Number.isFinite(val) ? val : fallback;
+    if (typeof val === "string") {
+      const cleaned = val.replace(/[^\d.,-]/g, "");
+      if (!cleaned) return fallback;
+      const normalized = cleaned.includes(".") && cleaned.includes(",")
+        ? cleaned.replace(/\./g, "").replace(",", ".")
+        : cleaned.includes(".") && cleaned.split(".").length > 2
+        ? cleaned.replace(/\./g, "")
+        : cleaned.includes(",") && cleaned.split(",").length > 2
+        ? cleaned.replace(/,/g, "")
+        : cleaned.replace(",", ".");
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const formatLargeCurrency = (val: unknown) => {
+    const safe = toFiniteNumber(val, 0);
+    return `Rp ${(safe / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
+  };
 
   // Modals
   let modal = null;
@@ -232,31 +281,31 @@ export function PaketView({ isLoading, data }: CommonViewProps) {
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard 
                title="Total Paket" 
-               value={stats.totalPackages} 
+               value={totalPaket} 
                subtext="Paket terdaftar" 
                icon={<Package className="h-4 w-4 text-blue-500" />} 
-               loading={isLoading}
+               loading={kpiLoading}
             />
             <StatCard 
                title="Total Pagu" 
-               value={formatLargeCurrency(stats.totalPagu)} 
+               value={formatLargeCurrency(totalPagu)} 
                subtext="Akumulasi" 
                icon={<DollarSign className="h-4 w-4 text-emerald-500" />} 
-               loading={isLoading}
+               loading={kpiLoading}
+            />
+            <StatCard 
+               title="Total HPS" 
+               value={formatLargeCurrency(totalHps)} 
+               subtext="Akumulasi HPS" 
+               icon={<TrendingUp className="h-4 w-4 text-amber-500" />} 
+               loading={kpiLoading}
             />
             <StatCard 
                title="Rata-rata" 
-               value={formatCurrency(stats.totalPackages > 0 ? stats.totalPagu / stats.totalPackages : 0)} 
+               value={formatCurrency(avgPaket)} 
                subtext="Per paket" 
-               icon={<TrendingUp className="h-4 w-4 text-amber-500" />} 
-               loading={isLoading}
-            />
-            <StatCard 
-               title="Terbesar" 
-               value={formatLargeCurrency(stats.topProjects[0]?.pagu || 0)} 
-               subtext={stats.topProjects[0]?.name || "-"} 
                icon={<ArrowUpRight className="h-4 w-4 text-purple-500" />} 
-               loading={isLoading}
+               loading={kpiLoading}
                truncate
             />
          </div>

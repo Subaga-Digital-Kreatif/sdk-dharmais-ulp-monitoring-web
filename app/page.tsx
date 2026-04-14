@@ -23,14 +23,18 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { OverviewView } from "./dashboard/overview-view";
-import { PaketView } from "./dashboard/paket-view";
 import { AnggaranView } from "./dashboard/anggaran-view";
-import { ProgresView } from "./dashboard/progres-view";
+import { PersiapanDashboardView } from "./persiapan-dashboard/persiapan-dashboard-view";
+import { ProsesDashboardView } from "./proses-dashboard/proses-dashboard-view";
 import { loadUlpData, UlpData } from "./dashboard/data-loader";
 import { AUTH_USER_STORAGE_KEY } from "@/models/auth";
 import { apiToken } from "@/models/api";
 
-type DashboardView = "overview" | "persiapan" | "proses" | "laporan";
+type DashboardView =
+  | "overview"
+  | "persiapan"
+  | "proses"
+  | "laporan";
 
 type PeriodPreset = "today" | "7d" | "30d" | "custom";
 
@@ -393,25 +397,25 @@ export default function Home() {
 
           <TabsContent
             value="overview"
-            className="flex-1 overflow-y-auto lg:overflow-hidden"
+            className="flex-1 overflow-hidden"
           >
             <OverviewView isLoading={isLoading} data={filteredData} />
           </TabsContent>
           <TabsContent
             value="persiapan"
-            className="flex-1 overflow-y-auto lg:overflow-hidden"
+            className="flex-1 overflow-hidden"
           >
-            <PaketView isLoading={isLoading} data={filteredData} />
+            <PersiapanDashboardView embedded />
           </TabsContent>
           <TabsContent
             value="proses"
-            className="flex-1 overflow-y-auto lg:overflow-hidden"
+            className="flex-1 overflow-hidden"
           >
-            <ProgresView isLoading={isLoading} data={filteredData} />
+            <ProsesDashboardView embedded />
           </TabsContent>
           <TabsContent
             value="laporan"
-            className="flex-1 overflow-y-auto lg:overflow-hidden"
+            className="flex-1 overflow-hidden"
           >
             <AnggaranView isLoading={isLoading} data={filteredData} />
           </TabsContent>
