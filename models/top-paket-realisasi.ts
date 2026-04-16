@@ -1,4 +1,8 @@
 import { api } from "./api";
+import {
+  type DashboardFilters,
+  toFilterParams,
+} from "@/lib/dashboard-filters";
 
 export type TopPaketRealisasiResponse = {
   id: number;
@@ -9,9 +13,12 @@ export type TopPaketRealisasiResponse = {
   perusahaan_alamat: string;
 };
 
-export const getTopPaketRealisasi = async (): Promise<
-  TopPaketRealisasiResponse[]
-> => {
-  const response = await api.get("/dashboard/proses/top-paket-realisasi");
+export const getTopPaketRealisasi = async (
+  filters: DashboardFilters = {},
+  limit = 100,
+): Promise<TopPaketRealisasiResponse[]> => {
+  const response = await api.get("/dashboard/proses/top-paket-realisasi", {
+    params: { limit, ...toFilterParams(filters) },
+  });
   return response.data;
 };

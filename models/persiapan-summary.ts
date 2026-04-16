@@ -1,4 +1,8 @@
 import { api } from "./api";
+import {
+  type DashboardFilters,
+  toFilterParams,
+} from "@/lib/dashboard-filters";
 
 export type PersiapanSummaryResponse = {
   totalPaket: number;
@@ -7,8 +11,11 @@ export type PersiapanSummaryResponse = {
   jumlahPerHari: number;
 };
 
-export const getPersiapanSummary =
-  async (): Promise<PersiapanSummaryResponse> => {
-    const response = await api.get("/dashboard/persiapan/summary");
-    return response.data;
-  };
+export const getPersiapanSummary = async (
+  filters: DashboardFilters = {},
+): Promise<PersiapanSummaryResponse> => {
+  const response = await api.get("/dashboard/persiapan/summary", {
+    params: toFilterParams(filters),
+  });
+  return response.data;
+};

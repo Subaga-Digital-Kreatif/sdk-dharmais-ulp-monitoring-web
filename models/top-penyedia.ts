@@ -1,4 +1,8 @@
 import { api } from "./api";
+import {
+  type DashboardFilters,
+  toFilterParams,
+} from "@/lib/dashboard-filters";
 
 export type TopPenyediaResponse = {
   id: number;
@@ -9,7 +13,12 @@ export type TopPenyediaResponse = {
   nilai_kontrak: number;
 };
 
-export const getTopPenyedia = async (): Promise<TopPenyediaResponse[]> => {
-  const response = await api.get("/dashboard/proses/top-penyedia");
+export const getTopPenyedia = async (
+  filters: DashboardFilters = {},
+  limit = 100,
+): Promise<TopPenyediaResponse[]> => {
+  const response = await api.get("/dashboard/proses/top-penyedia", {
+    params: { limit, ...toFilterParams(filters) },
+  });
   return response.data;
 };

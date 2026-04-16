@@ -18,6 +18,10 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TablePager } from "@/components/ui/table-pager";
+import { DashboardFilterBar } from "@/components/dashboard/filter-bar";
+import { useClientPagination } from "@/lib/use-pagination";
+import type { DashboardFilters } from "@/lib/dashboard-filters";
 import { getModalVsOperasional } from "@/models/modal-vs-operasional";
 import { getPaguPerMak } from "@/models/pagu-per-mak";
 import { getPaguPerPpk } from "@/models/pagu-per-ppk";
@@ -103,6 +107,15 @@ export function PersiapanDashboardView({ embedded = false }: PersiapanDashboardV
     persiapanList: null,
   });
 
+  const [filters, setFilters] = useState<DashboardFilters>({});
+  const [persiapanPage, setPersiapanPage] = useState(1);
+  const [persiapanPerPage, setPersiapanPerPage] = useState(25);
+  const [persiapanLoading, setPersiapanLoading] = useState(false);
+  const ppkPager = useClientPagination(data.paguPerPpk, 10);
+  const enduserPager = useClientPagination(data.paketPerEnduser, 10);
+
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+
   useEffect(() => {
     try {
       const ok =
@@ -118,13 +131,14 @@ export function PersiapanDashboardView({ embedded = false }: PersiapanDashboardV
   useEffect(() => {
     if (!authReady || !isAuthed) return;
     let cancelled = false;
+    setLoading(true);
     Promise.allSettled([
-      getPersiapanSummary(),
-      getModalVsOperasional(),
-      getPaguPerMak(),
-      getPaguPerPpk(),
-      getPaketPerEnduser(),
-      getPersiapanList(),
+      getPersiapanSummary(filters),
+      getModalVsOperasional(filters),
+      getPaguPerMak(filters),
+      getPaguPerPpk(filters),
+      getPaketPerEnduser(filters),
+      getPersiapanList({ page: 1, perPage: persiapanPerPage, ...filters }),
     ]).then((results) => {
       if (cancelled) return;
       const [r0, r1, r2, r3, r4, r5] = results;
@@ -141,12 +155,37 @@ export function PersiapanDashboardView({ embedded = false }: PersiapanDashboardV
         paketPerEnduser: r4.status === "fulfilled" ? r4.value : null,
         persiapanList: r5.status === "fulfilled" ? r5.value : null,
       });
+      setPersiapanPage(1);
       setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [authReady, isAuthed]);
+    // re-runs when auth or filter set changes; persiapan list paging handled below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, isAuthed, filtersKey]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthed || loading || persiapanPage === 1) return;
+    let cancelled = false;
+    setPersiapanLoading(true);
+    getPersiapanList({ page: persiapanPage, perPage: persiapanPerPage, ...filters })
+      .then((res) => {
+        if (cancelled) return;
+        setData((prev) => ({ ...prev, persiapanList: res }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setData((prev) => ({ ...prev, persiapanList: null }));
+      })
+      .finally(() => {
+        if (!cancelled) setPersiapanLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, isAuthed, persiapanPage, persiapanPerPage, filtersKey]);
 
   useEffect(() => {
     if (!authReady || isAuthed) return;
@@ -196,14 +235,17 @@ export function PersiapanDashboardView({ embedded = false }: PersiapanDashboardV
       </header>
       )}
 
-      <main className={embedded ? "grid h-full w-full grid-cols-1 gap-3 overflow-hidden px-1 py-1 lg:grid-cols-12 lg:grid-rows-[auto_1fr]" : "mx-auto grid h-full w-full max-w-7xl grid-cols-1 gap-3 overflow-hidden px-4 py-4 lg:grid-cols-12 lg:grid-rows-[auto_1fr] lg:px-6"}>
-        <div className="grid grid-cols-2 gap-3 lg:col-span-12 lg:grid-cols-4">
+      <main className={embedded ? "flex h-full w-full flex-col gap-3 overflow-hidden px-1 py-1" : "mx-auto flex h-full w-full max-w-7xl flex-col gap-3 overflow-hidden px-4 py-4 lg:px-6"}>
+        <DashboardFilterBar value={filters} onChange={setFilters} mode="prep" />
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Card><CardContent className="p-4">{loading ? <Skeleton className="h-8 w-full" /> : <div><p className="text-xs text-muted-foreground">Total Paket</p><p className="text-xl font-semibold">{toFiniteNumber(data.summary?.totalPaket).toLocaleString("id-ID")}</p></div>}</CardContent></Card>
           <Card><CardContent className="p-4">{loading ? <Skeleton className="h-8 w-full" /> : <div><p className="text-xs text-muted-foreground">Total Pagu</p><p className="text-xl font-semibold">{formatCompactIdr(data.summary?.totalPagu)}</p></div>}</CardContent></Card>
           <Card><CardContent className="p-4">{loading ? <Skeleton className="h-8 w-full" /> : <div><p className="text-xs text-muted-foreground">Total HPS</p><p className="text-xl font-semibold">{formatIdrFull(data.summary?.totalHps)}</p></div>}</CardContent></Card>
           <Card><CardContent className="p-4">{loading ? <Skeleton className="h-8 w-full" /> : <div><p className="text-xs text-muted-foreground">Paket / Hari</p><p className="text-xl font-semibold">{toFiniteNumber(data.summary?.jumlahPerHari).toLocaleString("id-ID")}</p></div>}</CardContent></Card>
         </div>
 
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-auto lg:grid-cols-12 lg:overflow-hidden">
         <Card className="flex min-h-0 flex-col lg:col-span-4">
           <CardHeader className="py-3"><CardTitle className="flex items-center gap-2 text-sm"><PieChartIcon className="h-4 w-4" />Modal vs Operasional</CardTitle></CardHeader>
           <CardContent className="min-h-0 flex-1">
@@ -247,81 +289,119 @@ export function PersiapanDashboardView({ embedded = false }: PersiapanDashboardV
 
         <Card className="flex min-h-0 flex-col lg:col-span-4">
           <CardHeader className="py-3"><CardTitle className="flex items-center gap-2 text-sm"><Table2 className="h-4 w-4" />Pagu per PPK</CardTitle></CardHeader>
-          <CardContent className="min-h-[350px] max-h-[350px] overflow-auto p-0">
+          <CardContent className="flex min-h-[350px] max-h-[420px] flex-col p-0">
             {loading ? <Skeleton className="m-3 h-24 w-[calc(100%-1.5rem)]" /> : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">PPK</th>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Paket</th>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Pagu</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(data.paguPerPpk ?? []).slice(0, 20).map((r) => (
-                    <tr key={r.ppk_kode}>
-                      <td className="px-3 py-2"><div className="line-clamp-2">{r.ppk_nomenklatur || r.ppk_kode}</div></td>
-                      <td className="px-3 py-2 text-right">{toFiniteNumber(r.jumlah_paket).toLocaleString("id-ID")}</td>
-                      <td className="px-3 py-2 text-right">{formatCompactIdr(r.total_pagu)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">PPK</th>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Paket</th>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Pagu</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {ppkPager.pageItems.map((r) => (
+                        <tr key={r.ppk_kode}>
+                          <td className="px-3 py-2"><div className="line-clamp-2">{r.ppk_nomenklatur || r.ppk_kode}</div></td>
+                          <td className="px-3 py-2 text-right">{toFiniteNumber(r.jumlah_paket).toLocaleString("id-ID")}</td>
+                          <td className="px-3 py-2 text-right">{formatCompactIdr(r.total_pagu)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePager
+                  page={ppkPager.page}
+                  perPage={ppkPager.perPage}
+                  total={ppkPager.total}
+                  onPageChange={ppkPager.setPage}
+                  onPerPageChange={ppkPager.setPerPage}
+                />
+              </>
             )}
           </CardContent>
         </Card>
 
         <Card className="flex min-h-0 flex-col lg:col-span-6">
           <CardHeader className="py-3"><CardTitle className="text-sm">Paket per Enduser</CardTitle></CardHeader>
-          <CardContent className="min-h-0 max-h-[300px] overflow-auto p-0">
+          <CardContent className="flex min-h-[300px] max-h-[420px] flex-col p-0">
             {loading ? <Skeleton className="m-3 h-24 w-[calc(100%-1.5rem)]" /> : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">Unit</th>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Paket</th>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Pagu</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(data.paketPerEnduser ?? []).slice(0, 30).map((r) => (
-                    <tr key={r.satker_unit_kode}>
-                      <td className="px-3 py-2"><div className="line-clamp-2">{r.satker_unit_nama}</div></td>
-                      <td className="px-3 py-2 text-right">{toFiniteNumber(r.jumlah_paket).toLocaleString("id-ID")}</td>
-                      <td className="px-3 py-2 text-right">{formatCompactIdr(r.total_pagu)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">Unit</th>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Paket</th>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Pagu</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {enduserPager.pageItems.map((r) => (
+                        <tr key={r.satker_unit_kode}>
+                          <td className="px-3 py-2"><div className="line-clamp-2">{r.satker_unit_nama}</div></td>
+                          <td className="px-3 py-2 text-right">{toFiniteNumber(r.jumlah_paket).toLocaleString("id-ID")}</td>
+                          <td className="px-3 py-2 text-right">{formatCompactIdr(r.total_pagu)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePager
+                  page={enduserPager.page}
+                  perPage={enduserPager.perPage}
+                  total={enduserPager.total}
+                  onPageChange={enduserPager.setPage}
+                  onPerPageChange={enduserPager.setPerPage}
+                />
+              </>
             )}
           </CardContent>
         </Card>
 
         <Card className="flex min-h-0 flex-col lg:col-span-6">
           <CardHeader className="py-3"><CardTitle className="text-sm">Daftar Persiapan</CardTitle></CardHeader>
-          <CardContent className="min-h-[350px] max-h-[350px] overflow-auto p-0">
+          <CardContent className="flex min-h-[350px] max-h-[420px] flex-col p-0">
             {loading ? <Skeleton className="m-3 h-24 w-[calc(100%-1.5rem)]" /> : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">Paket</th>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">Enduser</th>
-                    <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Pagu</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(data.persiapanList?.data ?? []).slice(0, 40).map((r) => (
-                    <tr key={r.id}>
-                      <td className="px-3 py-2"><div className="line-clamp-2">{r.paketPbjNama}</div></td>
-                      <td className="px-3 py-2"><div className="line-clamp-2">{r.satkerUnitEnduser?.satkerUnitNama ?? "-"}</div></td>
-                      <td className="px-3 py-2 text-right">{formatCompactIdr(r.anggaranPaguAktif)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">Paket</th>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-left">Enduser</th>
+                        <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right">Pagu</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(data.persiapanList?.data ?? []).map((r) => (
+                        <tr key={r.id}>
+                          <td className="px-3 py-2"><div className="line-clamp-2">{r.paketPbjNama}</div></td>
+                          <td className="px-3 py-2"><div className="line-clamp-2">{r.satkerUnitEnduser?.satkerUnitNama ?? "-"}</div></td>
+                          <td className="px-3 py-2 text-right">{formatCompactIdr(r.anggaranPaguAktif)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePager
+                  page={persiapanPage}
+                  perPage={persiapanPerPage}
+                  total={toFiniteNumber(data.persiapanList?.meta?.total)}
+                  loading={persiapanLoading}
+                  onPageChange={setPersiapanPage}
+                  onPerPageChange={(n) => {
+                    setPersiapanPerPage(n);
+                    setPersiapanPage(1);
+                  }}
+                />
+              </>
             )}
           </CardContent>
         </Card>
+        </div>
       </main>
     </div>
   );

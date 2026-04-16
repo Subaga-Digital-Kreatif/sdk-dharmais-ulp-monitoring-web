@@ -1,9 +1,16 @@
 import { api } from "./api";
+import {
+  type DashboardFilters,
+  toFilterParams,
+} from "@/lib/dashboard-filters";
 
 export type ppkCode = {
   id: number;
   ppkKode: string;
   ppkNomenklatur: string;
+  ppkNama: string | null;
+  ppkJabatan: string | null;
+  ppkUsulanMasuk: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -36,16 +43,16 @@ export type PersiapanList = {
   dppTgl: string;
   suratPpkHal: string;
   paketPbjNama: string;
-  anggaranPaguNonaktif: number | null;
-  anggaranPaguAktif: number;
+  anggaranPaguNonaktif: string | null;
+  anggaranPaguAktif: string;
   ulpMakCodeId: number | null;
-  kelompokBelanjaModal: number;
-  kelompokBelanjaOperasional: number | null;
+  kelompokBelanjaModal: string;
+  kelompokBelanjaOperasional: string | null;
   keteranganTambahan: string;
   createdAt: string;
   updatedAt: string | null;
   deletedAt: string | null;
-  hps: number | null;
+  hps: string | null;
   satkerUnitPengendali: satkerUnit | null;
   satkerUnitEnduser: satkerUnit | null;
   ppkCode: ppkCode | null;
@@ -57,7 +64,21 @@ export type PersiapanListResponse = {
   data: PersiapanList[];
 };
 
-export const getPersiapanList = async (): Promise<PersiapanListResponse> => {
-  const response = await api.get("/dashboard/persiapan/list");
+export type GetPersiapanListParams = {
+  page?: number;
+  perPage?: number;
+} & DashboardFilters;
+
+export const getPersiapanList = async (
+  params: GetPersiapanListParams = {},
+): Promise<PersiapanListResponse> => {
+  const { page, perPage, ...filters } = params;
+  const response = await api.get("/dashboard/persiapan/list", {
+    params: {
+      page: page ?? 1,
+      perPage: perPage ?? 25,
+      ...toFilterParams(filters),
+    },
+  });
   return response.data;
 };

@@ -11,6 +11,10 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TablePager } from "@/components/ui/table-pager";
+import { DashboardFilterBar } from "@/components/dashboard/filter-bar";
+import { useClientPagination } from "@/lib/use-pagination";
+import type { DashboardFilters } from "@/lib/dashboard-filters";
 import {
   Bar,
   BarChart,
@@ -63,6 +67,8 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
   const [authReady, setAuthReady] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
 
+  const [filters, setFilters] = useState<DashboardFilters>({});
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{
     metode: Awaited<ReturnType<typeof getMetodePemilihan>> | null;
@@ -95,13 +101,14 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
   useEffect(() => {
     if (!authReady || !isAuthed) return;
     let cancelled = false;
+    setLoading(true);
     Promise.allSettled([
-      getMetodePemilihan(),
-      getTopPaketRealisasi(),
-      getTopPenyedia(),
-      getStatusSurat(),
-      getSkalaPaket(),
-      getKriteriaBarangjasa(),
+      getMetodePemilihan(filters),
+      getTopPaketRealisasi(filters),
+      getTopPenyedia(filters),
+      getStatusSurat(filters),
+      getSkalaPaket(filters),
+      getKriteriaBarangjasa(filters),
     ]).then((results) => {
       if (cancelled) return;
       const [rm, r0, r1, r2, r3, r4] = results;
@@ -118,7 +125,8 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
     return () => {
       cancelled = true;
     };
-  }, [authReady, isAuthed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, isAuthed, filtersKey]);
 
   useEffect(() => {
     if (!authReady || isAuthed) return;
@@ -154,6 +162,9 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
       share: total > 0 ? (r.value / total) * 100 : 0,
     }));
   }, [data.statusSurat]);
+
+  const topPaketPager = useClientPagination(data.topPaket, 10);
+  const topPenyediaPager = useClientPagination(data.topPenyedia, 10);
 
   const kriteriaPieData = useMemo((): PieDatum[] => {
     const rows = data.kriteria;
@@ -202,7 +213,9 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
       </header>
       )}
 
-      <main className={embedded ? "flex h-full min-h-0 flex-col gap-4 overflow-hidden px-1 py-1" : "mx-auto max-w-7xl space-y-4 px-4 py-4 lg:px-6 lg:py-6"}>
+      <main className={embedded ? "flex h-full min-h-0 flex-col gap-3 overflow-hidden px-1 py-1" : "mx-auto max-w-7xl space-y-3 px-4 py-4 lg:px-6 lg:py-6"}>
+        <DashboardFilterBar value={filters} onChange={setFilters} mode="proc" />
+
         <div className="grid shrink-0 gap-4 grid-cols-1 lg:grid-cols-2">
           <Card className="shadow-sm border-[#E1ECF7]">
             <CardHeader className="flex flex-row items-center gap-2 border-b py-3">
@@ -337,30 +350,41 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
               <Activity className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium">Top Paket Realisasi</CardTitle>
             </CardHeader>
-            <CardContent className="min-h-[350px] max-h-[350px] overflow-auto p-0">
+            <CardContent className="flex min-h-[350px] max-h-[420px] flex-col p-0">
               {loading && !(data.topPaket && data.topPaket.length) ? (
                 <Skeleton className="m-3 h-40 w-[calc(100%-1.5rem)] rounded-lg" />
               ) : data.topPaket && data.topPaket.length > 0 ? (
-                <table className="w-full text-xs text-left">
-                  <thead>
-                    <tr className="text-muted-foreground">
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Nama Paket</th>
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Penyedia</th>
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right font-medium">Realisasi</th>
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right font-medium">Kontrak</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {data.topPaket.map((row) => (
-                      <tr key={row.id} className="hover:bg-muted/20">
-                        <td className="px-3 py-2 align-top"><span className="line-clamp-2" title={row.paket_pbj_nama}>{row.paket_pbj_nama}</span></td>
-                        <td className="px-3 py-2 align-top text-muted-foreground"><span className="line-clamp-2" title={row.perusahaan_nama}>{row.perusahaan_nama}</span></td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">{formatLargeCurrency(row.nilai_realisasi)}</td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">{formatLargeCurrency(row.nilai_kontrak)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="text-muted-foreground">
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Nama Paket</th>
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Penyedia</th>
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right font-medium">Realisasi</th>
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right font-medium">Kontrak</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {topPaketPager.pageItems.map((row) => (
+                          <tr key={row.id} className="hover:bg-muted/20">
+                            <td className="px-3 py-2 align-top"><span className="line-clamp-2" title={row.paket_pbj_nama}>{row.paket_pbj_nama}</span></td>
+                            <td className="px-3 py-2 align-top text-muted-foreground"><span className="line-clamp-2" title={row.perusahaan_nama}>{row.perusahaan_nama}</span></td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">{formatLargeCurrency(row.nilai_realisasi)}</td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">{formatLargeCurrency(row.nilai_kontrak)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <TablePager
+                    page={topPaketPager.page}
+                    perPage={topPaketPager.perPage}
+                    total={topPaketPager.total}
+                    onPageChange={topPaketPager.setPage}
+                    onPerPageChange={topPaketPager.setPerPage}
+                  />
+                </>
               ) : (
                 <p className="p-6 text-center text-xs text-muted-foreground">Tidak ada data</p>
               )}
@@ -372,28 +396,39 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
               <Activity className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium">Top Penyedia</CardTitle>
             </CardHeader>
-            <CardContent className="min-h-[350px] max-h-[350px] overflow-auto p-0">
+            <CardContent className="flex min-h-[350px] max-h-[420px] flex-col p-0">
               {loading && !(data.topPenyedia && data.topPenyedia.length) ? (
                 <Skeleton className="m-3 h-40 w-[calc(100%-1.5rem)] rounded-lg" />
               ) : data.topPenyedia && data.topPenyedia.length > 0 ? (
-                <table className="w-full text-[11px] text-left">
-                  <thead>
-                    <tr className="text-muted-foreground">
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Paket</th>
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Perusahaan</th>
-                      <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right font-medium">Realisasi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {data.topPenyedia.map((row) => (
-                      <tr key={row.id} className="hover:bg-muted/20">
-                        <td className="px-3 py-2 align-top max-w-[140px]"><span className="line-clamp-2" title={row.paket_pbj_nama}>{row.paket_pbj_nama}</span></td>
-                        <td className="px-3 py-2 align-top text-muted-foreground max-w-[140px]"><span className="line-clamp-2" title={row.perusahaan_nama}>{row.perusahaan_nama}</span></td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">{formatLargeCurrency(row.nilai_realisasi ?? row.nilai_kontrak)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <div className="flex-1 overflow-auto">
+                    <table className="w-full text-[11px] text-left">
+                      <thead>
+                        <tr className="text-muted-foreground">
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Paket</th>
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 font-medium">Perusahaan</th>
+                          <th className="sticky top-0 z-10 bg-white px-3 py-2 text-right font-medium">Realisasi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {topPenyediaPager.pageItems.map((row) => (
+                          <tr key={row.id} className="hover:bg-muted/20">
+                            <td className="px-3 py-2 align-top max-w-[140px]"><span className="line-clamp-2" title={row.paket_pbj_nama}>{row.paket_pbj_nama}</span></td>
+                            <td className="px-3 py-2 align-top text-muted-foreground max-w-[140px]"><span className="line-clamp-2" title={row.perusahaan_nama}>{row.perusahaan_nama}</span></td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">{formatLargeCurrency(row.nilai_realisasi ?? row.nilai_kontrak)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <TablePager
+                    page={topPenyediaPager.page}
+                    perPage={topPenyediaPager.perPage}
+                    total={topPenyediaPager.total}
+                    onPageChange={topPenyediaPager.setPage}
+                    onPerPageChange={topPenyediaPager.setPerPage}
+                  />
+                </>
               ) : (
                 <p className="p-6 text-center text-xs text-muted-foreground">Tidak ada data</p>
               )}
