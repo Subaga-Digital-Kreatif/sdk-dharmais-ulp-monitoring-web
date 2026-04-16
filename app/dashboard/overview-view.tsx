@@ -48,6 +48,8 @@ import { getMetodePemilihan } from "@/models/metode-pemilihan";
 import { getTopPaketRealisasi } from "@/models/top-paket-realisasi";
 import { getPaketPerEnduser } from "@/models/paket-per-enduser";
 import { cn } from "@/lib/utils";
+import { TablePager } from "@/components/ui/table-pager";
+import { useClientPagination } from "@/lib/use-pagination";
 
 type OverviewModalType = "trend" | "breakdown" | "risk" | null;
 
@@ -360,6 +362,8 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
     }));
   }, [overviewApiData.topPaket, stats.topProjects]);
 
+  const topPaketPager = useClientPagination(topPaketRows, 5);
+
   const unitChartData = useMemo(() => {
     if (overviewApiData.enduser && overviewApiData.enduser.length > 0) {
       return overviewApiData.enduser.slice(0, 5).map((x) => ({
@@ -666,51 +670,63 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
                 <ArrowUpRight className="h-3 w-3" />
              </Button>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 p-0 overflow-auto">
+          <CardContent className="flex-1 min-h-0 p-0 flex flex-col">
             {isLoading || overviewApiLoading ? (
               <Skeleton className="h-full w-full min-h-[120px]" />
             ) : (
-              <table className="w-full text-xs text-left">
-                <thead className="sticky top-0 bg-muted/20 text-muted-foreground font-medium z-10">
-                  <tr>
-                    <th className="px-3 py-2 font-medium w-[40%]">Nama Paket</th>
-                    <th className="px-3 py-2 font-medium w-[20%]">{topPaketRows[0]?.fromApi ? "Penyedia" : "Unit"}</th>
-                    <th className="px-3 py-2 font-medium text-right w-[20%]">{topPaketRows[0]?.fromApi ? "Realisasi" : "Pagu"}</th>
-                    <th className="px-3 py-2 font-medium text-right w-[20%]">{topPaketRows[0]?.fromApi ? "Kontrak" : "Efisiensi"}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {topPaketRows.map((project) => {
-                     const efficiency = project.paguOrRealisasi > 0 ? ((project.paguOrRealisasi - project.compareValue) / project.paguOrRealisasi) * 100 : 0;
-                     return (
-                      <tr key={project.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-3 py-2 align-top">
-                          <div className="line-clamp-2 font-medium text-gray-700" title={project.name}>
-                            {project.name}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 align-top text-gray-500">
-                          <div className="line-clamp-1" title={project.unitOrVendor}>{project.unitOrVendor}</div>
-                        </td>
-                        <td className="px-3 py-2 align-top text-right font-medium text-gray-700">
-                          {formatLargeCurrency(project.paguOrRealisasi)}
-                        </td>
-                        <td className="px-3 py-2 align-top text-right">
-                          {project.fromApi ? (
-                            <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
-                              {formatLargeCurrency(project.compareValue)}
-                            </span>
-                          ) : (
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${efficiency > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                              {efficiency.toFixed(1)}%
-                            </span>
-                          )}
-                        </td>
+              <>
+                <div className="flex-1 min-h-0 overflow-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="sticky top-0 bg-muted/20 text-muted-foreground font-medium z-10">
+                      <tr>
+                        <th className="px-3 py-2 font-medium w-[40%]">Nama Paket</th>
+                        <th className="px-3 py-2 font-medium w-[20%]">{topPaketRows[0]?.fromApi ? "Penyedia" : "Unit"}</th>
+                        <th className="px-3 py-2 font-medium text-right w-[20%]">{topPaketRows[0]?.fromApi ? "Realisasi" : "Pagu"}</th>
+                        <th className="px-3 py-2 font-medium text-right w-[20%]">{topPaketRows[0]?.fromApi ? "Kontrak" : "Efisiensi"}</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {topPaketPager.pageItems.map((project) => {
+                         const efficiency = project.paguOrRealisasi > 0 ? ((project.paguOrRealisasi - project.compareValue) / project.paguOrRealisasi) * 100 : 0;
+                         return (
+                          <tr key={project.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-3 py-2 align-top">
+                              <div className="line-clamp-2 font-medium text-gray-700" title={project.name}>
+                                {project.name}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-top text-gray-500">
+                              <div className="line-clamp-1" title={project.unitOrVendor}>{project.unitOrVendor}</div>
+                            </td>
+                            <td className="px-3 py-2 align-top text-right font-medium text-gray-700">
+                              {formatLargeCurrency(project.paguOrRealisasi)}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right">
+                              {project.fromApi ? (
+                                <span className="inline-flex items-center rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                                  {formatLargeCurrency(project.compareValue)}
+                                </span>
+                              ) : (
+                                <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${efficiency > 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                  {efficiency.toFixed(1)}%
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePager
+                  page={topPaketPager.page}
+                  perPage={topPaketPager.perPage}
+                  total={topPaketPager.total}
+                  onPageChange={topPaketPager.setPage}
+                  onPerPageChange={topPaketPager.setPerPage}
+                  perPageOptions={[5, 10, 25, 50]}
+                />
+              </>
             )}
           </CardContent>
         </Card>
