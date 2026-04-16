@@ -2,7 +2,7 @@ import { api } from "./api";
 
 export type PaguPerMak = {
   mak_kode: string;
-  mak_keterangan: null;
+  mak_keterangan: string | null;
   total_pagu: string;
   jumlah_paket: number;
 };

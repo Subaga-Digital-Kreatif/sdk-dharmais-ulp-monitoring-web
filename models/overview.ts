@@ -1,7 +1,7 @@
 import { api } from "./api";
 
 export type OverviewResponse = {
-  totalPackages: number;
+  totalPaket: number;
   totalPagu: number;
   totalHps: number;
   totalNilaiKontrak: number;

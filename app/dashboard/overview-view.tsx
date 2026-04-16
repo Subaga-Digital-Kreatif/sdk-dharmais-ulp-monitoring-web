@@ -232,7 +232,7 @@ export function OverviewView({ isLoading, data }: CommonViewProps) {
       const o = overview;
       const pagu = toFiniteNumber(o.totalPagu);
       const hps = toFiniteNumber(o.totalHps);
-      const packages = toFiniteNumber(o.totalPackages);
+      const packages = toFiniteNumber(o.totalPaket);
       const realisasiPct = toFiniteNumber(o.persentaseRealisasi);
       const hpsRatio =
         pagu > 0 ? ((hps / pagu) * 100).toFixed(1) : "0.0";

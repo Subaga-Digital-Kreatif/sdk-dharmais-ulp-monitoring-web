@@ -2,16 +2,14 @@ import { api } from "./api";
 
 export type ppkCode = {
   id: number;
-  satkerUnitPengendaliKode: string;
-  satkerUnitKode: string;
-  satkerUnitNama: string;
-  satkerUnitDirektorat: string;
+  ppkKode: string;
+  ppkNomenklatur: string;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
 };
 
-export type satkerUnitEnduser = {
+export type satkerUnit = {
   id: number;
   satkerUnitPengendaliKode: string;
   satkerUnitKode: string;
@@ -21,6 +19,8 @@ export type satkerUnitEnduser = {
   updatedAt: string;
   deletedAt: string | null;
 };
+
+export type satkerUnitEnduser = satkerUnit;
 
 export type PersiapanList = {
   id: number;
@@ -46,13 +46,14 @@ export type PersiapanList = {
   updatedAt: string | null;
   deletedAt: string | null;
   hps: number | null;
-  satkerUnitEnduser: satkerUnitEnduser;
-  ppkCode: ppkCode;
-  makCode: null;
+  satkerUnitPengendali: satkerUnit | null;
+  satkerUnitEnduser: satkerUnit | null;
+  ppkCode: ppkCode | null;
+  makCode: MakCode | null;
 };
 
 export type PersiapanListResponse = {
-  metadata: MetaResponse;
+  meta: MetaResponse;
   data: PersiapanList[];
 };
 
