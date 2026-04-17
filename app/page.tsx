@@ -379,33 +379,73 @@ export default function Home() {
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-full border border-[#C9E3FF] bg-white px-3 py-1.5 text-xs">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 rounded-full border-[#C9E3FF] bg-[#E6F3FF] text-[#0066CC] hover:bg-[#d9ecfc]"
-                  aria-label={
-                    autoRotate
-                      ? "Jeda putar otomatis"
-                      : "Mulai putar otomatis"
-                  }
-                  aria-pressed={autoRotate}
-                  onClick={() => setAutoRotate((v) => !v)}
-                >
-                  {autoRotate ? (
-                    <Pause className="h-4 w-4" />
-                  ) : (
-                    <Play className="h-4 w-4 fill-current" />
+              <div
+                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                  autoRotate
+                    ? "border-[#0066CC] bg-[#E6F3FF]"
+                    : "border-[#C9E3FF] bg-white"
+                }`}
+              >
+                <div className="relative h-10 w-10 shrink-0">
+                  {autoRotate && (
+                    <svg
+                      key={activeView}
+                      className="absolute inset-0 -rotate-90"
+                      viewBox="0 0 40 40"
+                      aria-hidden
+                    >
+                      <circle
+                        cx="20"
+                        cy="20"
+                        r="18"
+                        fill="none"
+                        stroke="#0066CC"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeDasharray="113"
+                        className="autorotate-ring"
+                      />
+                    </svg>
                   )}
-                </Button>
+                  <button
+                    type="button"
+                    aria-label={
+                      autoRotate
+                        ? "Jeda putar otomatis"
+                        : "Mulai putar otomatis"
+                    }
+                    aria-pressed={autoRotate}
+                    onClick={() => setAutoRotate((v) => !v)}
+                    className={`absolute inset-[3px] flex items-center justify-center rounded-full border transition-colors ${
+                      autoRotate
+                        ? "border-[#0066CC] bg-[#0066CC] text-white shadow-sm"
+                        : "border-[#C9E3FF] bg-[#E6F3FF] text-[#0066CC] hover:bg-[#d9ecfc]"
+                    }`}
+                  >
+                    {autoRotate ? (
+                      <Pause className="h-4 w-4 fill-current" />
+                    ) : (
+                      <Play className="h-4 w-4 fill-current" />
+                    )}
+                  </button>
+                  {autoRotate && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full border border-white bg-emerald-500" />
+                    </span>
+                  )}
+                </div>
                 <div className="flex min-w-0 flex-col leading-tight">
-                  <span className="font-medium text-[#0B1E33]">
-                    Putar otomatis
+                  <span
+                    className={`font-medium ${
+                      autoRotate ? "text-[#0066CC]" : "text-[#0B1E33]"
+                    }`}
+                  >
+                    {autoRotate ? "Putar otomatis • LIVE" : "Putar otomatis"}
                   </span>
                   <span className="text-[11px] text-[#5B6B7F]">
                     {autoRotate
-                      ? "Ganti tampilan berjalan"
+                      ? "Ganti tab tiap 15 detik"
                       : "Tekan play untuk mulai"}
                   </span>
                 </div>

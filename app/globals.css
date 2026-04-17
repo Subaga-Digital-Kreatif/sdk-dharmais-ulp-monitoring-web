@@ -24,3 +24,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Progress ring animation for Putar Otomatis */
+@keyframes autorotate-fill {
+  from {
+    stroke-dashoffset: 113;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.autorotate-ring {
+  animation: autorotate-fill 15s linear;
+}
