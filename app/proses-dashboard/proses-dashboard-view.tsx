@@ -60,15 +60,22 @@ type PieDatum = { name: string; value: number; share: number };
 
 type ProsesDashboardViewProps = {
   embedded?: boolean;
+  startDate?: string;
+  endDate?: string;
 };
 
-export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewProps) {
+export function ProsesDashboardView({ embedded = false, startDate, endDate }: ProsesDashboardViewProps) {
   const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
 
   const [filters, setFilters] = useState<DashboardFilters>({});
-  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+  const effectiveFilters = useMemo<DashboardFilters>(() => ({
+    ...filters,
+    ...(startDate ? { startDate } : {}),
+    ...(endDate ? { endDate } : {}),
+  }), [filters, startDate, endDate]);
+  const filtersKey = useMemo(() => JSON.stringify(effectiveFilters), [effectiveFilters]);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<{
     metode: Awaited<ReturnType<typeof getMetodePemilihan>> | null;
@@ -103,12 +110,12 @@ export function ProsesDashboardView({ embedded = false }: ProsesDashboardViewPro
     let cancelled = false;
     setLoading(true);
     Promise.allSettled([
-      getMetodePemilihan(filters),
-      getTopPaketRealisasi(filters),
-      getTopPenyedia(filters),
-      getStatusSurat(filters),
-      getSkalaPaket(filters),
-      getKriteriaBarangjasa(filters),
+      getMetodePemilihan(effectiveFilters),
+      getTopPaketRealisasi(effectiveFilters),
+      getTopPenyedia(effectiveFilters),
+      getStatusSurat(effectiveFilters),
+      getSkalaPaket(effectiveFilters),
+      getKriteriaBarangjasa(effectiveFilters),
     ]).then((results) => {
       if (cancelled) return;
       const [rm, r0, r1, r2, r3, r4] = results;

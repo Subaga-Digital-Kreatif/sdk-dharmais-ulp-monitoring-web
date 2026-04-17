@@ -463,13 +463,13 @@ export default function Home() {
             value="persiapan"
             className="flex-1 overflow-hidden"
           >
-            <PersiapanDashboardView embedded />
+            <PersiapanDashboardView embedded startDate={period.from} endDate={period.to} />
           </TabsContent>
           <TabsContent
             value="proses"
             className="flex-1 overflow-hidden"
           >
-            <ProsesDashboardView embedded />
+            <ProsesDashboardView embedded startDate={period.from} endDate={period.to} />
           </TabsContent>
           <TabsContent
             value="laporan"
