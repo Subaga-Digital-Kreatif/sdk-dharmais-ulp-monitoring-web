@@ -36,7 +36,7 @@ type DashboardView =
   | "proses"
   | "laporan";
 
-type PeriodPreset = "today" | "7d" | "30d" | "custom";
+type PeriodPreset = "all" | "today" | "7d" | "30d" | "custom";
 
 type PeriodState = {
   preset: PeriodPreset;
@@ -60,9 +60,8 @@ export default function Home() {
   const [period, setPeriod] = useState<PeriodState>(() => {
     const today = new Date();
     const iso = today.toISOString().slice(0, 10);
-    return { preset: "today", from: iso, to: iso };
+    return { preset: "all", from: iso, to: iso };
   });
-  const isDesktop = useIsDesktop();
 
   /** Jangan baca storage di render: SSR tidak punya window → placeholder; klien bisa langsung authed → mismatch. */
   const [authReady, setAuthReady] = useState(false);
@@ -86,7 +85,7 @@ export default function Home() {
   }, [authReady, isAuthed, router]);
 
   useAutoRotate({
-    enabled: autoRotate && isDesktop,
+    enabled: autoRotate,
     activeView,
     onChange: setActiveView,
   });
@@ -96,40 +95,24 @@ export default function Home() {
     const timeout = setTimeout(() => setIsLoading(false), 800);
     loadUlpData().then((data) => {
       setUlpData(data);
-      
-      // Auto-adjust period if data exists and is old
-      if (data.length > 0) {
-        // Find latest date
-        const dates = data
-          .map(d => d.tanggalDpp?.getTime() || 0)
-          .filter(t => t > 0);
-        
-        if (dates.length > 0) {
-          const maxDate = new Date(Math.max(...dates));
-          const today = new Date();
-          const diffTime = Math.abs(today.getTime() - maxDate.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          // If latest data is older than 7 days, adjust view to show last 30 days of data
-          if (diffDays > 7) {
-             // Adjust to local time string for input[type="date"]
-             // Note: toISOString() is UTC, so we need to be careful. 
-             // Ideally we use a library like date-fns, but here we can manually format.
-             const formatDate = (d: Date) => {
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-             };
 
-             const toIso = formatDate(maxDate);
-             const fromDate = new Date(maxDate);
-             fromDate.setDate(fromDate.getDate() - 30);
-             const fromIso = formatDate(fromDate);
-             
-             setPeriod({ preset: "custom", from: fromIso, to: toIso });
-          }
-        }
+      // Default period spans full data range so the dashboard shows data
+      // out of the box even when CSV is older than today.
+      const times = data
+        .map((d) => (d.tanggalDpp ?? d.tanggalDiterimaDpp)?.getTime() ?? 0)
+        .filter((t) => t > 0);
+      if (times.length > 0) {
+        const fmt = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        };
+        setPeriod({
+          preset: "all",
+          from: fmt(new Date(Math.min(...times))),
+          to: fmt(new Date(Math.max(...times))),
+        });
       }
     });
     return () => clearTimeout(timeout);
@@ -161,13 +144,22 @@ export default function Home() {
     router.push("/login");
   };
 
+  const dataRange = useMemo(() => {
+    if (!ulpData.length) return null;
+    const times = ulpData
+      .map((d) => (d.tanggalDpp ?? d.tanggalDiterimaDpp)?.getTime() ?? 0)
+      .filter((t) => t > 0);
+    if (times.length === 0) return null;
+    return { min: new Date(Math.min(...times)), max: new Date(Math.max(...times)) };
+  }, [ulpData]);
+
   const filteredData = useMemo(() => {
     if (!ulpData.length) return [];
 
     const { from, to } = period;
     const [fromY, fromM, fromD] = from.split("-").map(Number);
     const [toY, toM, toD] = to.split("-").map(Number);
-    
+
     // Create dates at start/end of day in local time
     const fromDate = new Date(fromY, fromM - 1, fromD, 0, 0, 0, 0);
     const toDate = new Date(toY, toM - 1, toD, 23, 59, 59, 999);
@@ -176,7 +168,7 @@ export default function Home() {
       // Primary date: Tanggal DPP, Fallback: Tanggal Diterima DPP
       const date = item.tanggalDpp || item.tanggalDiterimaDpp;
       if (!date) return false;
-      
+
       return date >= fromDate && date <= toDate;
     });
   }, [ulpData, period]);
@@ -185,21 +177,35 @@ export default function Home() {
     return <div className="min-h-screen bg-[#F7FBFF]" />;
   }
 
+  const formatIso = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const handleSetPreset = (preset: PeriodPreset) => {
-    const today = new Date();
-    const todayIso = today.toISOString().slice(0, 10);
+    // Anchor presets to latest data date, not wall-clock today, so presets
+    // return data even when CSV is older than the current date.
+    const ref = dataRange?.max ?? new Date();
+    const refIso = formatIso(ref);
+
+    if (preset === "all") {
+      const fromIso = dataRange ? formatIso(dataRange.min) : refIso;
+      setPeriod({ preset, from: fromIso, to: refIso });
+      return;
+    }
 
     if (preset === "today") {
-      setPeriod({ preset, from: todayIso, to: todayIso });
+      setPeriod({ preset, from: refIso, to: refIso });
       return;
     }
 
     if (preset === "7d" || preset === "30d") {
       const offset = preset === "7d" ? 6 : 29;
-      const fromDate = new Date(today);
+      const fromDate = new Date(ref);
       fromDate.setDate(fromDate.getDate() - offset);
-      const fromIso = fromDate.toISOString().slice(0, 10);
-      setPeriod({ preset, from: fromIso, to: todayIso });
+      setPeriod({ preset, from: formatIso(fromDate), to: refIso });
       return;
     }
   };
@@ -312,13 +318,25 @@ export default function Home() {
                     <button
                       type="button"
                       className={`rounded-full px-2 py-0.5 ${
+                        period.preset === "all"
+                          ? "bg-[#0066CC] text-white"
+                          : "text-[#0B1E33]"
+                      }`}
+                      onClick={() => handleSetPreset("all")}
+                    >
+                      Semua
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-full px-2 py-0.5 ${
                         period.preset === "today"
                           ? "bg-[#0066CC] text-white"
                           : "text-[#0B1E33]"
                       }`}
                       onClick={() => handleSetPreset("today")}
+                      title="Hari terakhir data"
                     >
-                      Hari Ini
+                      Terakhir
                     </button>
                     <button
                       type="button"
@@ -445,17 +463,3 @@ function useAutoRotate({ enabled, activeView, onChange }: UseAutoRotateArgs) {
   }, [enabled, activeView, onChange]);
 }
 
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const check = () => setIsDesktop(window.innerWidth >= 1024);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  return isDesktop;
-}
