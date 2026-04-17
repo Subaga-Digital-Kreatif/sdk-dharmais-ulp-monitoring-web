@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Calendar,
   Check,
   ChevronDown,
   Filter as FilterIcon,
@@ -11,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { api } from "@/models/api";
 import {
@@ -52,6 +54,7 @@ async function fetchOptions<T>(
 }
 
 type FilterKey =
+  | "periode"
   | "keteranganTambahan"
   | "ulpSatkerUnitEnduserId"
   | "ulpSatkerUnitPengendaliId"
@@ -62,6 +65,7 @@ type FilterKey =
   | "ulpPerusahaanId";
 
 const FILTER_LABELS: Record<FilterKey, string> = {
+  periode: "Periode",
   keteranganTambahan: "Status",
   ulpSatkerUnitEnduserId: "Enduser",
   ulpSatkerUnitPengendaliId: "Pengendali",
@@ -73,6 +77,7 @@ const FILTER_LABELS: Record<FilterKey, string> = {
 };
 
 const PREP_KEYS: FilterKey[] = [
+  "periode",
   "keteranganTambahan",
   "ulpSatkerUnitEnduserId",
   "ulpSatkerUnitPengendaliId",
@@ -172,7 +177,8 @@ export function DashboardFilterBar({
 
   const activeKeys = useMemo((): FilterKey[] => {
     const keys: FilterKey[] = [];
-    const simple: FilterKey[] = [
+    if (value.startDate || value.endDate) keys.push("periode");
+    const simple: Array<Exclude<FilterKey, "periode">> = [
       "keteranganTambahan",
       "ulpSatkerUnitEnduserId",
       "ulpSatkerUnitPengendaliId",
@@ -197,7 +203,12 @@ export function DashboardFilterBar({
 
   const removeKey = (key: FilterKey) => {
     const next: DashboardFilters = { ...value };
-    delete next[key];
+    if (key === "periode") {
+      delete next.startDate;
+      delete next.endDate;
+    } else {
+      delete next[key];
+    }
     onChange(next);
   };
 
@@ -226,6 +237,14 @@ export function DashboardFilterBar({
   };
 
   const displayValue = (key: FilterKey): string => {
+    if (key === "periode") {
+      const s = value.startDate ?? "";
+      const e = value.endDate ?? "";
+      if (s && e) return `${s} — ${e}`;
+      if (s) return `≥ ${s}`;
+      if (e) return `≤ ${e}`;
+      return "";
+    }
     const v = value[key as keyof DashboardFilters];
     if (v === undefined || v === null || v === "") return "";
     const opt = optsFor(key).find((o) => String(o.value) === String(v));
@@ -288,7 +307,11 @@ export function DashboardFilterBar({
                   }}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[#0B1E33] hover:bg-[#E6F3FF]"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#C9E3FF]" />
+                  {k === "periode" ? (
+                    <Calendar className="h-3.5 w-3.5 text-[#5B6B7F]" />
+                  ) : (
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#C9E3FF]" />
+                  )}
                   {FILTER_LABELS[k]}
                 </button>
               ))}
@@ -312,18 +335,33 @@ export function DashboardFilterBar({
 
       {openKey && (
         <div className="absolute left-2 top-full z-50 mt-1 min-w-[280px] max-w-[360px]">
-          <ComboboxEditor
-            options={optsFor(openKey)}
-            value={value[openKey as keyof DashboardFilters]}
-            onSelect={(v) => {
-              setValue({ [openKey]: v } as DashboardFilters);
-              setOpenKey(null);
-            }}
-            onClear={() => {
-              removeKey(openKey);
-              setOpenKey(null);
-            }}
-          />
+          {openKey === "periode" ? (
+            <PeriodEditor
+              startDate={value.startDate}
+              endDate={value.endDate}
+              onApply={(s, e) => {
+                setValue({ startDate: s, endDate: e });
+                setOpenKey(null);
+              }}
+              onClear={() => {
+                setValue({ startDate: undefined, endDate: undefined });
+                setOpenKey(null);
+              }}
+            />
+          ) : (
+            <ComboboxEditor
+              options={optsFor(openKey)}
+              value={value[openKey as keyof DashboardFilters]}
+              onSelect={(v) => {
+                setValue({ [openKey]: v } as DashboardFilters);
+                setOpenKey(null);
+              }}
+              onClear={() => {
+                removeKey(openKey);
+                setOpenKey(null);
+              }}
+            />
+          )}
         </div>
       )}
     </div>
@@ -467,3 +505,119 @@ function ComboboxEditor({
   );
 }
 
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function PeriodEditor({
+  startDate,
+  endDate,
+  onApply,
+  onClear,
+}: {
+  startDate?: string;
+  endDate?: string;
+  onApply: (start: string | undefined, end: string | undefined) => void;
+  onClear: () => void;
+}) {
+  const [s, setS] = useState(startDate ?? "");
+  const [e, setE] = useState(endDate ?? "");
+
+  const applyPreset = (days: number | "month" | "year") => {
+    const today = new Date();
+    const end = toIsoDate(today);
+    let start: string;
+    if (days === "month") {
+      start = toIsoDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    } else if (days === "year") {
+      start = toIsoDate(new Date(today.getFullYear(), 0, 1));
+    } else {
+      const d = new Date(today);
+      d.setDate(d.getDate() - days + 1);
+      start = toIsoDate(d);
+    }
+    onApply(start, end);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-md border border-[#E1ECF7] bg-white shadow-lg">
+      <div className="border-b border-[#E1ECF7] p-2">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[#5B6B7F]">
+          Preset
+        </p>
+        <div className="grid grid-cols-3 gap-1">
+          <PresetBtn onClick={() => applyPreset(7)}>7 hari</PresetBtn>
+          <PresetBtn onClick={() => applyPreset(30)}>30 hari</PresetBtn>
+          <PresetBtn onClick={() => applyPreset(90)}>90 hari</PresetBtn>
+          <PresetBtn onClick={() => applyPreset("month")}>Bulan ini</PresetBtn>
+          <PresetBtn onClick={() => applyPreset("year")}>Tahun ini</PresetBtn>
+        </div>
+      </div>
+      <div className="p-2">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[#5B6B7F]">
+          Kustom
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-0.5 text-[10px] text-[#5B6B7F]">
+            Dari
+            <input
+              type="date"
+              value={s}
+              onChange={(ev) => setS(ev.target.value)}
+              className="h-7 rounded border border-[#C9E3FF] bg-white px-1.5 text-[11px] text-[#0B1E33] focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+            />
+          </label>
+          <label className="flex flex-col gap-0.5 text-[10px] text-[#5B6B7F]">
+            Sampai
+            <input
+              type="date"
+              value={e}
+              onChange={(ev) => setE(ev.target.value)}
+              className="h-7 rounded border border-[#C9E3FF] bg-white px-1.5 text-[11px] text-[#0B1E33] focus:outline-none focus:ring-1 focus:ring-[#0066CC]"
+            />
+          </label>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-1">
+          {(startDate || endDate) && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-[#5B6B7F] hover:bg-[#F7FBFF]"
+            >
+              <X className="h-3 w-3" /> Hapus
+            </button>
+          )}
+          <Button
+            size="sm"
+            className="ml-auto h-7 text-[11px]"
+            onClick={() => onApply(s || undefined, e || undefined)}
+            disabled={!s && !e}
+          >
+            Terapkan
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PresetBtn({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-7 rounded border border-[#C9E3FF] bg-white px-2 text-[11px] text-[#0066CC] hover:bg-[#E6F3FF]"
+    >
+      {children}
+    </button>
+  );
+}

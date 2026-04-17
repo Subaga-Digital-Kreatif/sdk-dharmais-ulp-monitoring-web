@@ -84,11 +84,9 @@ function formatIdrFull(val: unknown) {
 
 type PersiapanDashboardViewProps = {
   embedded?: boolean;
-  startDate?: string;
-  endDate?: string;
 };
 
-export function PersiapanDashboardView({ embedded = false, startDate, endDate }: PersiapanDashboardViewProps) {
+export function PersiapanDashboardView({ embedded = false }: PersiapanDashboardViewProps) {
   const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
   const [isAuthed, setIsAuthed] = useState(false);
@@ -116,15 +114,7 @@ export function PersiapanDashboardView({ embedded = false, startDate, endDate }:
   const ppkPager = useClientPagination(data.paguPerPpk, 10);
   const enduserPager = useClientPagination(data.paketPerEnduser, 10);
 
-  // Merge top-level period (from parent) with locally-set chip filters.
-  // Period from the parent takes precedence over any local startDate/endDate.
-  const effectiveFilters = useMemo<DashboardFilters>(() => ({
-    ...filters,
-    ...(startDate ? { startDate } : {}),
-    ...(endDate ? { endDate } : {}),
-  }), [filters, startDate, endDate]);
-
-  const filtersKey = useMemo(() => JSON.stringify(effectiveFilters), [effectiveFilters]);
+  const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
 
   useEffect(() => {
     try {
@@ -143,12 +133,12 @@ export function PersiapanDashboardView({ embedded = false, startDate, endDate }:
     let cancelled = false;
     setLoading(true);
     Promise.allSettled([
-      getPersiapanSummary(effectiveFilters),
-      getModalVsOperasional(effectiveFilters),
-      getPaguPerMak(effectiveFilters),
-      getPaguPerPpk(effectiveFilters),
-      getPaketPerEnduser(effectiveFilters),
-      getPersiapanList({ page: 1, perPage: persiapanPerPage, ...effectiveFilters }),
+      getPersiapanSummary(filters),
+      getModalVsOperasional(filters),
+      getPaguPerMak(filters),
+      getPaguPerPpk(filters),
+      getPaketPerEnduser(filters),
+      getPersiapanList({ page: 1, perPage: persiapanPerPage, ...filters }),
     ]).then((results) => {
       if (cancelled) return;
       const [r0, r1, r2, r3, r4, r5] = results;
@@ -179,7 +169,7 @@ export function PersiapanDashboardView({ embedded = false, startDate, endDate }:
     if (!authReady || !isAuthed || loading || persiapanPage === 1) return;
     let cancelled = false;
     setPersiapanLoading(true);
-    getPersiapanList({ page: persiapanPage, perPage: persiapanPerPage, ...effectiveFilters })
+    getPersiapanList({ page: persiapanPage, perPage: persiapanPerPage, ...filters })
       .then((res) => {
         if (cancelled) return;
         setData((prev) => ({ ...prev, persiapanList: res }));
