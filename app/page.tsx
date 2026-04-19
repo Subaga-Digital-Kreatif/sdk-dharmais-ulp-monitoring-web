@@ -311,7 +311,7 @@ export default function Home() {
                 </TabsTrigger>
               </TabsList>
               <div className="flex flex-1 flex-col gap-1 rounded-2xl border border-[#C9E3FF] bg-white px-3 py-1.5 text-xs sm:flex-row sm:items-center">
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <span className="text-[#5B6B7F]">Periode</span>
                   <span className="h-3 w-px bg-[#E1ECF7]" />
                   <div className="flex gap-1 overflow-x-auto whitespace-nowrap pr-1">
@@ -377,7 +377,7 @@ export default function Home() {
                     onChange={(e) => handleCustomToChange(e.target.value)}
                     className="h-6 flex-1 rounded border border-[#C9E3FF] bg-white px-1 text-[11px] text-[#0B1E33]"
                   />
-                </div>
+                </div> */}
               </div>
               <div
                 className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
